@@ -90,3 +90,14 @@ class CustomUser(AbstractUser):
     @property
     def can_manage_organism_users(self):
         return bool(self.administration_id and self.is_admin_organisme)
+
+    @property
+    def can_access_extranet(self):
+        return bool(
+            self.administration_id
+            and self.has_role(
+                self.ROLE_CONSULTATION,
+                self.ROLE_SIGNATAIRE,
+                self.ROLE_ADMIN_ORGANISME,
+            )
+        )

@@ -74,12 +74,9 @@ class DossierListAccessTests(TestCase):
         self.assertNotContains(response, "SPORT-001")
         self.assertNotContains(response, "Complexe sportif")
 
-    def test_admin_dde_does_not_get_all_beneficiary_dossiers(self):
+    def test_admin_dde_cannot_access_extranet_dossier_list(self):
         self.client.force_login(self.admin_dde)
 
         response = self.client.get(reverse("affectations:dossier_list"))
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Aucun dossier")
-        self.assertNotContains(response, "EDU-001")
-        self.assertNotContains(response, "SPORT-001")
+        self.assertEqual(response.status_code, 403)

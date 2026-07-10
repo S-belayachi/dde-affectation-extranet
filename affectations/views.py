@@ -1,10 +1,11 @@
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
+
+from accounts.decorators import capability_required
 
 from .models import TableFaitAffectationDatalab
 
 
-@login_required
+@capability_required("can_access_extranet")
 def dossier_list(request):
     administration = request.user.administration
     dossiers = TableFaitAffectationDatalab.objects.none()

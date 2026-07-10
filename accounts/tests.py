@@ -10,10 +10,21 @@ User = get_user_model()
 
 class AuthenticationFlowTests(TestCase):
     def setUp(self):
+        self.education = AdministrationBeneficiaire.objects.create(
+            nom="Education Nationale"
+        )
         self.user = User.objects.create_user(
             username="beneficiary",
             password="StrongPass123!",
             role=User.ROLE_CONSULTATION,
+            administration=self.education,
+        )
+        self.admin_dde = User.objects.create_user(
+            username="admin_dde",
+            password="StrongPass123!",
+            role=User.ROLE_ADMIN_DDE,
+            is_staff=True,
+            is_superuser=True,
         )
 
     def test_dashboard_requires_login(self):
@@ -39,6 +50,32 @@ class AuthenticationFlowTests(TestCase):
         response = self.client.post(reverse("accounts:logout"))
 
         self.assertRedirects(response, reverse("accounts:login"))
+
+    def test_admin_dde_cannot_login_to_extranet(self):
+        response = self.client.post(
+            reverse("accounts:login"),
+            {
+                "username": "admin_dde",
+                "password": "StrongPass123!",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Ce compte est reserve")
+
+    def test_admin_dde_cannot_access_extranet_dashboard(self):
+        self.client.force_login(self.admin_dde)
+
+        response = self.client.get(reverse("accounts:dashboard"))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_dde_can_access_django_admin(self):
+        self.client.force_login(self.admin_dde)
+
+        response = self.client.get("/admin/")
+
+        self.assertEqual(response.status_code, 200)
 
 
 class OrganismUserManagementTests(TestCase):

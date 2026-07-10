@@ -75,7 +75,9 @@
         <h1>Connexion Extranet</h1>
         <p>Acces reserve aux administrations beneficiaires.</p>
 
-        {% if form.errors %}
+        {% if form.non_field_errors %}
+            <div class="error">{{ form.non_field_errors|join:" " }}</div>
+        {% elif form.errors %}
             <div class="error">Identifiant ou mot de passe incorrect.</div>
         {% endif %}
 

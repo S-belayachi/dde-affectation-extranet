@@ -159,6 +159,21 @@ Use the project virtual environment for Django commands:
 - Test validation passed: `.\.venv\Scripts\python.exe manage.py test` ran 11 tests successfully.
 - Validation passed: `.\.venv\Scripts\python.exe manage.py check`.
 - Validation passed: `.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run`.
+- Created three development Extranet test users linked to `Education Nationale`:
+  - `consult_education`, role `consultation`
+  - `signataire_education`, role `signataire`, `peut_signer=True`
+  - `admin_org_education`, role `admin_organisme`
+- Verified the test users are active, non-staff, non-superuser accounts and that `consult_education` can log in successfully.
+- Blocked internal DDE admin accounts from the beneficiary Extranet:
+  - added `CustomUser.can_access_extranet`
+  - added `ExtranetAuthenticationForm` for `/login/`
+  - applied `can_access_extranet` to the dashboard and dossier list
+  - kept Django Admin authentication separate for `admin_dde`
+- Improved the login template so it shows specific form-level access errors.
+- Test validation passed: `.\.venv\Scripts\python.exe manage.py test` ran 14 tests successfully.
+- Validation passed: `.\.venv\Scripts\python.exe manage.py check`.
+- Validation passed: `.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run`.
+- Confirmed the real `admin` account has `can_access_extranet=False` and receives HTTP 403 on `/` and `/dossiers/`.
 
 ## Completed Fixes
 
@@ -175,6 +190,8 @@ Use the project virtual environment for Django commands:
 - Added reusable role/capability helpers and decorators for Extranet authorization.
 - Added same-administration user-management pages for `admin_organisme`.
 - Added automated tests for authentication, dossier filtering, and organism user-management access control.
+- Created development Extranet test users for manual role testing.
+- Blocked `admin_dde` accounts from beneficiary Extranet login/pages while keeping Django Admin separate.
 
 ## Future Work
 

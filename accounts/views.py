@@ -1,4 +1,3 @@
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -13,7 +12,7 @@ from .forms import (
 User = get_user_model()
 
 
-@login_required
+@capability_required("can_access_extranet")
 def dashboard(request):
     return render(request, "accounts/dashboard.html")
 

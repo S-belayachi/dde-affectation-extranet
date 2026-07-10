@@ -2,6 +2,7 @@ from django.contrib.auth import views as auth_views
 from django.urls import path
 
 from . import views
+from .forms import ExtranetAuthenticationForm
 
 
 app_name = "accounts"
@@ -21,7 +22,10 @@ urlpatterns = [
     ),
     path(
         "login/",
-        auth_views.LoginView.as_view(template_name="accounts/login.html"),
+        auth_views.LoginView.as_view(
+            authentication_form=ExtranetAuthenticationForm,
+            template_name="accounts/login.html",
+        ),
         name="login",
     ),
     path(

@@ -77,10 +77,6 @@ L’Extranet est un MVP complémentaire à AMLACS, destiné aux administrations 
 8. L’Extranet doit-il afficher tout le cycle de vie après la signature ?
 - Par exemple : réalisation, utilisation, désaffectation, clôture.
 
-# departement
-
-code, nom, nom en arabe, adr francais / arabe, 
-
 # users
 
 - consultation: can consult dossiers if linked to an administration
@@ -88,5 +84,15 @@ code, nom, nom en arabe, adr francais / arabe,
 - admin_organisme: can consult dossiers and can manage organism users later
 - admin_dde: does not see beneficiary dossiers in the Extranet list
 
-# admin
 
+# What is not complete yet if we speak about a production-grade authentication system:
+
+- No password reset flow
+- No email verification
+- No forced password change on first login
+- No account lockout after repeated failed logins
+- No audit log for login/logout/user-management actions
+- No custom rule blocking admin_dde from Extranet login
+- No polished shared layout/base template
+- No HTTPS/production security settings yet
+- No OTP authentication/signature flow yet

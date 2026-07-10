@@ -1,5 +1,7 @@
 from django import forms
+from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 
 
 User = get_user_model()
@@ -10,6 +12,25 @@ MANAGED_ORGANISM_ROLES = (
     User.ROLE_SIGNATAIRE,
     User.ROLE_ADMIN_ORGANISME,
 )
+
+
+class ExtranetAuthenticationForm(AuthenticationForm):
+    error_messages = {
+        **AuthenticationForm.error_messages,
+        "not_extranet_user": (
+            "Ce compte est reserve a l'administration interne DDE. "
+            "Veuillez utiliser l'interface Django Admin."
+        ),
+    }
+
+    def confirm_login_allowed(self, user):
+        super().confirm_login_allowed(user)
+
+        if not user.can_access_extranet:
+            raise ValidationError(
+                self.error_messages["not_extranet_user"],
+                code="not_extranet_user",
+            )
 
 
 class OrganismUserBaseForm(forms.ModelForm):

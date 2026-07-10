@@ -20,7 +20,7 @@ Clean and harden the early Django MVP setup for the DDE affectation Extranet whi
 - [x] Add dossier list filtered by `request.user.administration.nom`.
 - [x] Add role helpers or decorators for `consultation`, `signataire`, `admin_organisme`, and `admin_dde`.
 - [x] Add user-management pages for `admin_organisme` to manage users from only their own administration.
-- [ ] Add tests for login, logout, dashboard protection, and organization-based access control.
+- [x] Add tests for login, logout, dashboard protection, and organization-based access control.
 - [ ] Later: add OTP-based PV signature workflow with traceability.
 
 ## Initial Inspection
@@ -144,6 +144,21 @@ Use the project virtual environment for Django commands:
   - cross-administration edit returns HTTP 404
   - non-admin-organisme access returns HTTP 403
   - temporary smoke-test users were removed after validation
+- Added automated tests for authentication and access control:
+  - dashboard requires login
+  - login redirects to dashboard
+  - logout redirects to login
+  - `admin_organisme` sees only same-administration users
+  - non-`admin_organisme` access to user management is forbidden
+  - organism user creation forces the current administration and non-staff flags
+  - organism user update is limited to the same administration
+  - cross-administration user edit returns HTTP 404
+  - dossier list requires login
+  - beneficiary users see only dossiers matching their administration name
+  - `admin_dde` does not receive all beneficiary dossiers in the Extranet list
+- Test validation passed: `.\.venv\Scripts\python.exe manage.py test` ran 11 tests successfully.
+- Validation passed: `.\.venv\Scripts\python.exe manage.py check`.
+- Validation passed: `.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run`.
 
 ## Completed Fixes
 
@@ -159,6 +174,7 @@ Use the project virtual environment for Django commands:
 - Added the first protected Extranet dossier list filtered by beneficiary administration.
 - Added reusable role/capability helpers and decorators for Extranet authorization.
 - Added same-administration user-management pages for `admin_organisme`.
+- Added automated tests for authentication, dossier filtering, and organism user-management access control.
 
 ## Future Work
 

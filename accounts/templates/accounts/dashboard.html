@@ -102,6 +102,9 @@
             </dl>
             <div class="actions">
                 <a href="{% url 'affectations:dossier_list' %}">Consulter mes dossiers</a>
+                {% if request.user.can_manage_organism_users %}
+                    <a href="{% url 'accounts:organism_user_list' %}">Gerer les utilisateurs</a>
+                {% endif %}
             </div>
         </section>
     </main>

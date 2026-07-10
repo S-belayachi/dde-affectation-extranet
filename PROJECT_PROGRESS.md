@@ -19,7 +19,7 @@ Clean and harden the early Django MVP setup for the DDE affectation Extranet whi
 - [x] Create the first DDE superuser and verify Django Admin access.
 - [x] Add dossier list filtered by `request.user.administration.nom`.
 - [x] Add role helpers or decorators for `consultation`, `signataire`, `admin_organisme`, and `admin_dde`.
-- [ ] Add user-management pages for `admin_organisme` to manage users from only their own administration.
+- [x] Add user-management pages for `admin_organisme` to manage users from only their own administration.
 - [ ] Add tests for login, logout, dashboard protection, and organization-based access control.
 - [ ] Later: add OTP-based PV signature workflow with traceability.
 
@@ -124,6 +124,26 @@ Use the project virtual environment for Django commands:
 - Validation passed: `.\.venv\Scripts\python.exe manage.py check`.
 - Validation passed: `.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run`.
 - Smoke test passed for the four roles, and temporary smoke-test users were removed after validation.
+- Added organism user-management pages for `admin_organisme`:
+  - `/utilisateurs/` list page
+  - `/utilisateurs/ajouter/` create page
+  - `/utilisateurs/<id>/modifier/` edit page
+  - dashboard link visible only when `request.user.can_manage_organism_users` is true
+- User-management safety rules:
+  - managed users are limited to the current admin's `administration`
+  - `admin_dde` accounts cannot be created or edited through these organism pages
+  - `is_staff`, `is_superuser`, and `administration` are forced server-side
+  - the current `admin_organisme` account is excluded from its own management list
+  - `peut_signer` is kept only for `signataire` users
+- Validation passed: `.\.venv\Scripts\python.exe manage.py check`.
+- Validation passed: `.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run`.
+- Smoke test passed:
+  - `admin_organisme` can list same-administration users
+  - `admin_organisme` can create a same-administration signataire user
+  - `admin_organisme` can edit a same-administration user
+  - cross-administration edit returns HTTP 404
+  - non-admin-organisme access returns HTTP 403
+  - temporary smoke-test users were removed after validation
 
 ## Completed Fixes
 
@@ -138,6 +158,7 @@ Use the project virtual environment for Django commands:
 - Normalized and verified the first DDE admin superuser.
 - Added the first protected Extranet dossier list filtered by beneficiary administration.
 - Added reusable role/capability helpers and decorators for Extranet authorization.
+- Added same-administration user-management pages for `admin_organisme`.
 
 ## Future Work
 

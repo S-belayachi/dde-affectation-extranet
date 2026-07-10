@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tableau de bord | Extranet Affectation</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f3f6f8;
+            color: #17202a;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 16px 24px;
+            background: #fff;
+            border-bottom: 1px solid #d8e0e6;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.25rem;
+        }
+
+        main {
+            width: min(960px, calc(100% - 32px));
+            margin: 32px auto;
+        }
+
+        section {
+            padding: 24px;
+            background: #fff;
+            border: 1px solid #d8e0e6;
+            border-radius: 8px;
+        }
+
+        dl {
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            gap: 10px 18px;
+            margin: 0;
+        }
+
+        dt {
+            font-weight: 700;
+        }
+
+        dd {
+            margin: 0;
+        }
+
+        button {
+            padding: 9px 12px;
+            border: 1px solid #b8c4cc;
+            border-radius: 6px;
+            background: #fff;
+            font: inherit;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Extranet Affectation</h1>
+        <form method="post" action="{% url 'accounts:logout' %}">
+            {% csrf_token %}
+            <button type="submit">Se deconnecter</button>
+        </form>
+    </header>
+
+    <main>
+        <section>
+            <h2>Tableau de bord</h2>
+            <dl>
+                <dt>Utilisateur</dt>
+                <dd>{{ request.user.get_full_name|default:request.user.username }}</dd>
+
+                <dt>Role</dt>
+                <dd>{{ request.user.get_role_display }}</dd>
+
+                <dt>Administration</dt>
+                <dd>{{ request.user.administration|default:"Non renseignee" }}</dd>
+            </dl>
+        </section>
+    </main>
+</body>
+</html>

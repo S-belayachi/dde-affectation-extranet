@@ -12,6 +12,17 @@ Clean and harden the early Django MVP setup for the DDE affectation Extranet whi
 - [x] Add `requirements.txt` from the working project virtual environment.
 - [x] Run final verification and record remaining future work.
 
+## Authentication And User Management Todo
+
+- [x] Add Extranet authentication foundation: login/logout routes, redirect settings, and a protected dashboard placeholder.
+- [ ] Create beneficiary administrations in Django Admin so users can be linked to their organism.
+- [ ] Create the first DDE superuser and verify Django Admin access.
+- [ ] Add dossier list filtered by `request.user.administration.nom`.
+- [ ] Add role helpers or decorators for `consultation`, `signataire`, `admin_organisme`, and `admin_dde`.
+- [ ] Add user-management pages for `admin_organisme` to manage users from only their own administration.
+- [ ] Add tests for login, logout, dashboard protection, and organization-based access control.
+- [ ] Later: add OTP-based PV signature workflow with traceability.
+
 ## Initial Inspection
 
 - Project apps are present: `accounts`, `affectations`, and `config`.
@@ -58,6 +69,14 @@ Use the project virtual environment for Django commands:
 - Final validation passed: `.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run`.
 - Final validation passed: `.\.venv\Scripts\python.exe manage.py showmigrations`.
 - Confirmed ORM read access to `table_fait_affectation_datalab`; first row sample: `1503/198008/31`, `Education Nationale`, `PV établi`, `Validé`.
+- Added the first Extranet authentication foundation:
+  - login page at `/login/`
+  - logout route at `/logout/`
+  - protected dashboard placeholder at `/`
+  - redirect settings in `config/settings.py`
+- Validation passed: `.\.venv\Scripts\python.exe manage.py check`.
+- Validation passed: `.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run`; no changes detected, with a PostgreSQL credential warning because environment variables are not currently loaded.
+- Smoke test passed: unauthenticated `/` redirects to `/login/?next=/`, and `/login/` returns HTTP 200.
 
 ## Completed Fixes
 
@@ -66,6 +85,7 @@ Use the project virtual environment for Django commands:
 - Cleaned generated model noise without changing model fields or migrations.
 - Added a dependency manifest for reproducible local setup.
 - Completed final verification after cleanup.
+- Added the Extranet authentication foundation.
 
 ## Future Work
 

@@ -15,7 +15,7 @@ Clean and harden the early Django MVP setup for the DDE affectation Extranet whi
 ## Authentication And User Management Todo
 
 - [x] Add Extranet authentication foundation: login/logout routes, redirect settings, and a protected dashboard placeholder.
-- [ ] Create beneficiary administrations in Django Admin so users can be linked to their organism.
+- [x] Create beneficiary administrations in Django Admin so users can be linked to their organism.
 - [ ] Create the first DDE superuser and verify Django Admin access.
 - [ ] Add dossier list filtered by `request.user.administration.nom`.
 - [ ] Add role helpers or decorators for `consultation`, `signataire`, `admin_organisme`, and `admin_dde`.
@@ -77,6 +77,14 @@ Use the project virtual environment for Django commands:
 - Validation passed: `.\.venv\Scripts\python.exe manage.py check`.
 - Validation passed: `.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run`; no changes detected, with a PostgreSQL credential warning because environment variables are not currently loaded.
 - Smoke test passed: unauthenticated `/` redirects to `/login/?next=/`, and `/login/` returns HTTP 200.
+- Added local `.env` loading in `config/settings.py` and created the ignored development `.env` file so Django commands can use the PostgreSQL credentials consistently.
+- Created 3 `AdministrationBeneficiaire` records from distinct imported source names:
+  - `Education Nationale`
+  - `Enseignement Supérieur Et De La Recherche Scientifique`
+  - `Jeunesse Et Sports`
+- Validation passed: `.\.venv\Scripts\python.exe manage.py check`.
+- Validation passed: `.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run`.
+- Confirmed all 3 distinct source administration names now match structured `AdministrationBeneficiaire.nom` values.
 
 ## Completed Fixes
 
@@ -86,9 +94,11 @@ Use the project virtual environment for Django commands:
 - Added a dependency manifest for reproducible local setup.
 - Completed final verification after cleanup.
 - Added the Extranet authentication foundation.
+- Added local `.env` support for consistent development database configuration.
+- Created the initial beneficiary administration records needed to link users to organisms.
 
 ## Future Work
 
-- Add beneficiary administrations matching imported source names.
+- Complete official details for beneficiary administrations: codes, Arabic names, addresses, contact emails, and phone numbers.
 - Build Extranet login, dashboard, dossier list, and dossier detail pages.
 - Add OTP-based PV signature workflow later with full traceability.

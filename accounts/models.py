@@ -48,3 +48,45 @@ class CustomUser(AbstractUser):
     def __str__(self):
         full_name = self.get_full_name()
         return full_name if full_name else self.username
+
+    def has_role(self, *roles):
+        return self.role in roles
+
+    @property
+    def is_consultation_user(self):
+        return self.has_role(self.ROLE_CONSULTATION)
+
+    @property
+    def is_signataire(self):
+        return self.has_role(self.ROLE_SIGNATAIRE)
+
+    @property
+    def is_admin_organisme(self):
+        return self.has_role(self.ROLE_ADMIN_ORGANISME)
+
+    @property
+    def is_admin_dde(self):
+        return self.has_role(self.ROLE_ADMIN_DDE)
+
+    @property
+    def can_consult_dossiers(self):
+        return bool(
+            self.administration_id
+            and self.has_role(
+                self.ROLE_CONSULTATION,
+                self.ROLE_SIGNATAIRE,
+                self.ROLE_ADMIN_ORGANISME,
+            )
+        )
+
+    @property
+    def can_sign_pv(self):
+        return bool(
+            self.administration_id
+            and self.is_signataire
+            and self.peut_signer
+        )
+
+    @property
+    def can_manage_organism_users(self):
+        return bool(self.administration_id and self.is_admin_organisme)

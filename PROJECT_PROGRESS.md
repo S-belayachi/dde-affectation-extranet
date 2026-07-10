@@ -18,7 +18,7 @@ Clean and harden the early Django MVP setup for the DDE affectation Extranet whi
 - [x] Create beneficiary administrations in Django Admin so users can be linked to their organism.
 - [x] Create the first DDE superuser and verify Django Admin access.
 - [x] Add dossier list filtered by `request.user.administration.nom`.
-- [ ] Add role helpers or decorators for `consultation`, `signataire`, `admin_organisme`, and `admin_dde`.
+- [x] Add role helpers or decorators for `consultation`, `signataire`, `admin_organisme`, and `admin_dde`.
 - [ ] Add user-management pages for `admin_organisme` to manage users from only their own administration.
 - [ ] Add tests for login, logout, dashboard protection, and organization-based access control.
 - [ ] Later: add OTP-based PV signature workflow with traceability.
@@ -108,6 +108,22 @@ Use the project virtual environment for Django commands:
   - a user linked to `Education Nationale` gets HTTP 200 and sees its filtered list
   - the internal `admin_dde` account gets HTTP 200 with an empty Extranet dossier state
   - temporary smoke-test user was removed after validation
+- Added role and capability helpers on `CustomUser`:
+  - `has_role`
+  - `is_consultation_user`
+  - `is_signataire`
+  - `is_admin_organisme`
+  - `is_admin_dde`
+  - `can_consult_dossiers`
+  - `can_sign_pv`
+  - `can_manage_organism_users`
+- Added reusable decorators in `accounts/decorators.py`:
+  - `role_required`
+  - `capability_required`
+- Updated the dossier list to use `request.user.can_consult_dossiers` before showing filtered source dossiers.
+- Validation passed: `.\.venv\Scripts\python.exe manage.py check`.
+- Validation passed: `.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run`.
+- Smoke test passed for the four roles, and temporary smoke-test users were removed after validation.
 
 ## Completed Fixes
 
@@ -121,6 +137,7 @@ Use the project virtual environment for Django commands:
 - Created the initial beneficiary administration records needed to link users to organisms.
 - Normalized and verified the first DDE admin superuser.
 - Added the first protected Extranet dossier list filtered by beneficiary administration.
+- Added reusable role/capability helpers and decorators for Extranet authorization.
 
 ## Future Work
 

@@ -77,13 +77,16 @@ L’Extranet est un MVP complémentaire à AMLACS, destiné aux administrations 
 8. L’Extranet doit-il afficher tout le cycle de vie après la signature ?
 - Par exemple : réalisation, utilisation, désaffectation, clôture.
 
-# departenment
+# departement
 
 code, nom, nom en arabe, adr francais / arabe, 
 
 # users
 
-nom, prenom, email, 
+- consultation: can consult dossiers if linked to an administration
+- signataire: can consult dossiers and can sign later if peut_signer=True
+- admin_organisme: can consult dossiers and can manage organism users later
+- admin_dde: does not see beneficiary dossiers in the Extranet list
 
 # admin
 

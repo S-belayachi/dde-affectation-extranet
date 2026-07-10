@@ -9,7 +9,7 @@ def dossier_list(request):
     administration = request.user.administration
     dossiers = TableFaitAffectationDatalab.objects.none()
 
-    if administration:
+    if request.user.can_consult_dossiers:
         dossiers = (
             TableFaitAffectationDatalab.objects
             .filter(administration_beneficiaire=administration.nom)

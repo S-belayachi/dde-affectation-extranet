@@ -54,6 +54,20 @@
             margin: 0;
         }
 
+        .actions {
+            margin-top: 22px;
+        }
+
+        .actions a {
+            display: inline-block;
+            padding: 10px 14px;
+            border-radius: 6px;
+            background: #0f766e;
+            color: #fff;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
         button {
             padding: 9px 12px;
             border: 1px solid #b8c4cc;
@@ -86,6 +100,9 @@
                 <dt>Administration</dt>
                 <dd>{{ request.user.administration|default:"Non renseignee" }}</dd>
             </dl>
+            <div class="actions">
+                <a href="{% url 'affectations:dossier_list' %}">Consulter mes dossiers</a>
+            </div>
         </section>
     </main>
 </body>

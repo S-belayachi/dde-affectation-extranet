@@ -16,8 +16,8 @@ Clean and harden the early Django MVP setup for the DDE affectation Extranet whi
 
 - [x] Add Extranet authentication foundation: login/logout routes, redirect settings, and a protected dashboard placeholder.
 - [x] Create beneficiary administrations in Django Admin so users can be linked to their organism.
-- [ ] Create the first DDE superuser and verify Django Admin access.
-- [ ] Add dossier list filtered by `request.user.administration.nom`.
+- [x] Create the first DDE superuser and verify Django Admin access.
+- [x] Add dossier list filtered by `request.user.administration.nom`.
 - [ ] Add role helpers or decorators for `consultation`, `signataire`, `admin_organisme`, and `admin_dde`.
 - [ ] Add user-management pages for `admin_organisme` to manage users from only their own administration.
 - [ ] Add tests for login, logout, dashboard protection, and organization-based access control.
@@ -85,6 +85,29 @@ Use the project virtual environment for Django commands:
 - Validation passed: `.\.venv\Scripts\python.exe manage.py check`.
 - Validation passed: `.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run`.
 - Confirmed all 3 distinct source administration names now match structured `AdministrationBeneficiaire.nom` values.
+- Normalized the existing `admin` superuser as the first DDE admin account:
+  - role: `admin_dde`
+  - staff: true
+  - superuser: true
+  - active: true
+  - administration: empty, because it is an internal DDE admin account
+- Verified Django Admin access using the normalized `admin` account:
+  - `/admin/` returned HTTP 200
+  - `/admin/accounts/customuser/` returned HTTP 200
+- Validation passed: `.\.venv\Scripts\python.exe manage.py check`.
+- Validation passed: `.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run`.
+- Added the protected dossier list page:
+  - `/dossiers/`
+  - exact filter: `TableFaitAffectationDatalab.administration_beneficiaire = request.user.administration.nom`
+  - users without an administration see an empty state instead of all dossiers
+  - dashboard link: `Consulter mes dossiers`
+- Validation passed: `.\.venv\Scripts\python.exe manage.py check`.
+- Validation passed: `.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run`.
+- Smoke test passed:
+  - anonymous `/dossiers/` redirects to `/login/?next=/dossiers/`
+  - a user linked to `Education Nationale` gets HTTP 200 and sees its filtered list
+  - the internal `admin_dde` account gets HTTP 200 with an empty Extranet dossier state
+  - temporary smoke-test user was removed after validation
 
 ## Completed Fixes
 
@@ -96,6 +119,8 @@ Use the project virtual environment for Django commands:
 - Added the Extranet authentication foundation.
 - Added local `.env` support for consistent development database configuration.
 - Created the initial beneficiary administration records needed to link users to organisms.
+- Normalized and verified the first DDE admin superuser.
+- Added the first protected Extranet dossier list filtered by beneficiary administration.
 
 ## Future Work
 

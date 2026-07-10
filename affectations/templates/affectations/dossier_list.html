@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dossiers d'affectation | Extranet Affectation</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f3f6f8;
+            color: #17202a;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 16px 24px;
+            background: #fff;
+            border-bottom: 1px solid #d8e0e6;
+        }
+
+        nav {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        a {
+            color: #0f766e;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.25rem;
+        }
+
+        main {
+            width: min(1180px, calc(100% - 32px));
+            margin: 32px auto;
+        }
+
+        .summary {
+            margin-bottom: 18px;
+            padding: 20px;
+            background: #fff;
+            border: 1px solid #d8e0e6;
+            border-radius: 8px;
+        }
+
+        .summary h2 {
+            margin: 0 0 8px;
+            font-size: 1.15rem;
+        }
+
+        .summary p {
+            margin: 0;
+            color: #5d6d7e;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            background: #fff;
+            border: 1px solid #d8e0e6;
+            border-radius: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 920px;
+        }
+
+        th,
+        td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #e5ebef;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background: #eef4f3;
+            color: #34495e;
+            font-size: 0.88rem;
+        }
+
+        tr:last-child td {
+            border-bottom: 0;
+        }
+
+        .empty {
+            padding: 24px;
+            background: #fff;
+            border: 1px solid #d8e0e6;
+            border-radius: 8px;
+        }
+
+        button {
+            padding: 9px 12px;
+            border: 1px solid #b8c4cc;
+            border-radius: 6px;
+            background: #fff;
+            font: inherit;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Extranet Affectation</h1>
+        <nav>
+            <a href="{% url 'accounts:dashboard' %}">Tableau de bord</a>
+            <form method="post" action="{% url 'accounts:logout' %}">
+                {% csrf_token %}
+                <button type="submit">Se deconnecter</button>
+            </form>
+        </nav>
+    </header>
+
+    <main>
+        <section class="summary">
+            <h2>Dossiers d'affectation</h2>
+            {% if administration %}
+                <p>Administration beneficiaire : {{ administration.nom }}</p>
+            {% else %}
+                <p>Aucune administration beneficiaire n'est associee a votre compte.</p>
+            {% endif %}
+        </section>
+
+        {% if dossiers %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Numero dossier</th>
+                            <th>Projet</th>
+                            <th>Type affectation</th>
+                            <th>Statut dossier</th>
+                            <th>PV</th>
+                            <th>Ouverture</th>
+                            <th>DR</th>
+                            <th>Delegation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dossier in dossiers %}
+                            <tr>
+                                <td>{{ dossier.num_dossier|default:"-" }}</td>
+                                <td>{{ dossier.denomination_projet|default:"-" }}</td>
+                                <td>{{ dossier.type_affectation|default:"-" }}</td>
+                                <td>{{ dossier.statut_dossier|default:"-" }}</td>
+                                <td>{{ dossier.statut_pv|default:"-" }}</td>
+                                <td>{{ dossier.date_ouverture_dossier|date:"d/m/Y"|default:"-" }}</td>
+                                <td>{{ dossier.dr|default:"-" }}</td>
+                                <td>{{ dossier.delegation|default:"-" }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty">
+                Aucun dossier d'affectation n'est disponible pour votre compte.
+            </div>
+        {% endif %}
+    </main>
+</body>
+</html>

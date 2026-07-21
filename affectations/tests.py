@@ -5,9 +5,10 @@ from django.db import connection
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
-from docx import Document
+import fitz
 import tempfile
 import shutil
+from pathlib import Path
 
 from .models import (
     AdministrationBeneficiaire,
@@ -16,7 +17,12 @@ from .models import (
     SignatureOtpPv,
     TableFaitAffectationDatalab,
 )
-from .services.pv_generation import absolute_generated_path, generate_pv_pdf
+from .services.pv_documents import (
+    calculate_sha256,
+    get_signed_pdf_path,
+    retrieve_official_pv,
+)
+from .services.pv_rules import PV_READY_STATUSES
 
 
 User = get_user_model()
@@ -48,6 +54,13 @@ class DossierListAccessTests(TestCase):
             role=User.ROLE_CONSULTATION,
             administration=self.education,
         )
+        self.education_signataire = User.objects.create_user(
+            username="education_signataire",
+            password="StrongPass123!",
+            role=User.ROLE_SIGNATAIRE,
+            administration=self.education,
+            peut_signer=True,
+        )
         self.admin_dde = User.objects.create_user(
             username="admin_dde",
             password="StrongPass123!",
@@ -68,6 +81,13 @@ class DossierListAccessTests(TestCase):
             denomination_projet="Complexe sportif",
             statut_dossier="En cours",
             statut_pv="",
+        )
+        self.ready_education_dossier = TableFaitAffectationDatalab.objects.create(
+            num_dossier="EDU-PV-READY",
+            administration_beneficiaire="Education Nationale",
+            denomination_projet="Ecole prete a signer",
+            statut_dossier="PV etabli",
+            statut_pv=next(iter(PV_READY_STATUSES)),
         )
 
     def test_dossier_list_requires_login(self):
@@ -94,6 +114,14 @@ class DossierListAccessTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_signataire_sees_only_ready_for_signature_dossiers(self):
+        self.client.force_login(self.education_signataire)
+
+        response = self.client.get(reverse("affectations:dossier_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "EDU-PV-READY")
+        self.assertNotContains(response, "EDU-001")
 
 class PvAffectationFlowTests(TestCase):
     @classmethod
@@ -111,19 +139,17 @@ class PvAffectationFlowTests(TestCase):
     def setUp(self):
         self.tmpdir = tempfile.mkdtemp()
         self.addCleanup(lambda: shutil.rmtree(self.tmpdir, ignore_errors=True))
-        self.template_root = f"{self.tmpdir}/document_templates"
-        self.generated_root = f"{self.tmpdir}/generated_documents"
+        self.document_root = Path(self.tmpdir) / "pv_documents"
         self.override = override_settings(
-            DOCUMENT_TEMPLATE_ROOT=self.template_root,
-            GENERATED_DOCUMENT_ROOT=self.generated_root,
-            PV_ALLOW_DEVELOPMENT_PDF_FALLBACK=True,
             PV_PRINT_OTP_TO_CONSOLE=False,
             EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
             DEFAULT_FROM_EMAIL="pv-otp@example.test",
+            PV_DOCUMENT_ROOT=self.document_root,
+            AMLACS_PV_OFFICIAL_ROOT=self.document_root / "official",
+            SIGNED_PV_ROOT=self.document_root / "signed",
         )
         self.override.enable()
         self.addCleanup(self.override.disable)
-        self.create_template()
 
         self.education = AdministrationBeneficiaire.objects.create(
             nom="Education Nationale"
@@ -184,25 +210,33 @@ class PvAffectationFlowTests(TestCase):
             statut_pv="Validé",
         )
 
-    def create_template(self):
-        from pathlib import Path
+        for dossier in (
+            self.ready_dossier,
+            self.ready_duplicate,
+            self.not_ready_dossier,
+        ):
+            self.create_official_pdf(dossier)
 
-        path = Path(self.template_root) / "pv_affectation" / "pv_affectation_template.docx"
+    def create_official_pdf(self, dossier):
+        path = self.document_root / "official" / f"{dossier.import_id}.pdf"
         path.parent.mkdir(parents=True, exist_ok=True)
-        document = Document()
-        document.add_paragraph("PV {{ num_dossier }} {{ administration_nom_fr }}")
+        document = fitz.open()
+        page = document.new_page()
+        page.insert_text(
+            (72, 72),
+            f"PV officiel AMLACS {dossier.num_dossier} {dossier.numero_pv}",
+        )
         document.save(path)
+        document.close()
 
-    def test_pv_buttons_hidden_when_status_not_ready(self):
+    def test_signataire_cannot_open_dossier_when_status_is_not_ready(self):
         self.client.force_login(self.signataire)
 
         response = self.client.get(
             reverse("affectations:dossier_detail", args=[self.not_ready_dossier.import_id])
         )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, "Consulter le PV")
-        self.assertNotContains(response, "Signer par OTP")
+        self.assertEqual(response.status_code, 403)
 
     def test_pv_buttons_hidden_for_consultation_user(self):
         self.client.force_login(self.consultation_user)
@@ -257,11 +291,14 @@ class PvAffectationFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "application/pdf")
-        self.assertNotIn(self.generated_root, response["Content-Disposition"])
+        self.assertNotIn(str(self.document_root), response["Content-Disposition"])
+        pv = PvAffectation.objects.get()
+        self.assertEqual(pv.source_filename, f"{self.ready_dossier.import_id}.pdf")
+        self.assertTrue(pv.source_pdf_hash_sha256)
 
     def test_grouped_dossier_rows_share_one_pv_record(self):
-        generate_pv_pdf(self.ready_dossier, self.education)
-        generate_pv_pdf(self.ready_duplicate, self.education)
+        retrieve_official_pv(self.ready_dossier, self.education)
+        retrieve_official_pv(self.ready_duplicate, self.education)
 
         self.assertEqual(PvAffectation.objects.count(), 1)
 
@@ -306,7 +343,7 @@ class PvAffectationFlowTests(TestCase):
         self.assertIsNone(second_otp.invalidated_at)
 
     def test_wrong_otp_increments_attempts(self):
-        pv = generate_pv_pdf(self.ready_dossier, self.education)
+        pv, _source_path = retrieve_official_pv(self.ready_dossier, self.education)
         OtpCode.objects.create(
             user=self.signataire,
             pv=pv,
@@ -326,7 +363,7 @@ class PvAffectationFlowTests(TestCase):
         self.assertFalse(pv.is_signed)
 
     def test_expired_otp_fails(self):
-        pv = generate_pv_pdf(self.ready_dossier, self.education)
+        pv, _source_path = retrieve_official_pv(self.ready_dossier, self.education)
         OtpCode.objects.create(
             user=self.signataire,
             pv=pv,
@@ -345,7 +382,7 @@ class PvAffectationFlowTests(TestCase):
         self.assertFalse(pv.is_signed)
 
     def test_used_otp_fails(self):
-        pv = generate_pv_pdf(self.ready_dossier, self.education)
+        pv, _source_path = retrieve_official_pv(self.ready_dossier, self.education)
         OtpCode.objects.create(
             user=self.signataire,
             pv=pv,
@@ -364,8 +401,31 @@ class PvAffectationFlowTests(TestCase):
         pv.refresh_from_db()
         self.assertFalse(pv.is_signed)
 
+    def test_changed_official_pdf_cannot_be_signed_with_an_existing_otp(self):
+        pv, source_path = retrieve_official_pv(self.ready_dossier, self.education)
+        OtpCode.objects.create(
+            user=self.signataire,
+            pv=pv,
+            code_hash=make_password("123456"),
+            expires_at=timezone.now() + timezone.timedelta(minutes=10),
+        )
+        source_path.write_bytes(b"changed-after-otp-request")
+        self.client.force_login(self.signataire)
+
+        response = self.client.post(
+            reverse("affectations:pv_otp_verify", args=[self.ready_dossier.import_id]),
+            {"otp_code": "123456"},
+        )
+
+        pv.refresh_from_db()
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(pv.is_signed)
+        self.assertIsNone(OtpCode.objects.get().used_at)
+        self.assertEqual(SignatureOtpPv.objects.count(), 0)
+
     def test_successful_otp_signature_marks_pv_signed_and_blocks_pdf(self):
-        pv = generate_pv_pdf(self.ready_dossier, self.education)
+        pv, _source_path = retrieve_official_pv(self.ready_dossier, self.education)
+        source_hash_before_signature = calculate_sha256(_source_path)
         OtpCode.objects.create(
             user=self.signataire,
             pv=pv,
@@ -387,14 +447,13 @@ class PvAffectationFlowTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(pv.is_signed)
         self.assertIsNotNone(pv.signed_at)
+        self.assertTrue(pv.signed_pdf.startswith("signed"))
+        self.assertEqual(calculate_sha256(_source_path), source_hash_before_signature)
         self.assertEqual(SignatureOtpPv.objects.count(), 1)
         self.assertEqual(SignatureOtpPv.objects.get().user_agent, "Test agent")
-        signed_document = Document(absolute_generated_path(pv.generated_docx))
-        footer_text = "\n".join(
-            paragraph.text
-            for section in signed_document.sections
-            for paragraph in section.footer.paragraphs
-        )
+        signed_document = fitz.open(get_signed_pdf_path(pv))
+        footer_text = "\n".join(page.get_text() for page in signed_document)
+        signed_document.close()
         self.assertIn(
             "Signé électroniquement par Education Nationale",
             footer_text,

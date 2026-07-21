@@ -389,3 +389,13 @@ La signature est liée à la version et au hash du PDF
 L’accès au PDF est bloqué
   ↓
 Le résultat est transmis à AMLACS
+
+
+
+# a ajouter
+
+- lecture du PV a l'etat signe par DR depuis un repertoire
+- generation d'un PV signe electroniquement puis le stocker dans un repertoire
+- laisser que les dossiers signe par DR dans l'extranet
+- traduire l'interface en arabe
+- improve and polish the interface 

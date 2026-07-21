@@ -179,7 +179,8 @@ class PvAffectationAdmin(admin.ModelAdmin):
         "numero_pv",
         "administration",
         "is_signed",
-        "generated_at",
+        "source_filename",
+        "source_retrieved_at",
         "signed_at",
         "signed_pdf_link",
     )
@@ -194,7 +195,7 @@ class PvAffectationAdmin(admin.ModelAdmin):
 
     @admin.display(description="PDF signe")
     def signed_pdf_link(self, obj):
-        if not obj.is_signed or not obj.generated_pdf:
+        if not obj.is_signed or not obj.signed_pdf:
             return "-"
 
         url = reverse("affectations:dde_signed_pv_pdf", args=[obj.pk])

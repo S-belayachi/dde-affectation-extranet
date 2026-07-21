@@ -8,9 +8,10 @@ from django.core.mail import send_mail
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from affectations.models import OtpCode, PvAffectation, SignatureOtpPv
-from affectations.services.pv_generation import generate_signed_pv_pdf
+from affectations.services.pv_documents import create_signed_pv_pdf
 from affectations.services.pv_rules import can_user_sign_pv
 
 
@@ -39,17 +40,19 @@ def send_pv_otp(user, plain_code):
     recipient = (user.email or "").strip()
     if not recipient:
         raise OtpDeliveryError(
-            "Votre compte ne dispose pas d'adresse e-mail. Contactez votre administrateur organisme."
+            _("Votre compte ne dispose pas d'adresse e-mail. Contactez votre administrateur organisme.")
         )
 
     try:
         sent = send_mail(
-            subject="Signature PV - code de verification",
+            subject=_("Signature PV - code de verification"),
             message=(
-                "Vous avez demande la signature d'un PV d'affectation.\n\n"
-                f"Votre code de verification est : {plain_code}\n\n"
-                f"Ce code expire dans {settings.PV_OTP_EXPIRY_MINUTES} minutes et ne peut etre utilise qu'une seule fois. "
-                "Ne le communiquez a personne."
+                _("Vous avez demande la signature d'un PV d'affectation.\n\n")
+                + _("Votre code de verification est : %(code)s\n\n") % {"code": plain_code}
+                + _(
+                    "Ce code expire dans %(minutes)s minutes et ne peut etre utilise qu'une seule fois. "
+                ) % {"minutes": settings.PV_OTP_EXPIRY_MINUTES}
+                + _("Ne le communiquez a personne.")
             ),
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[recipient],
@@ -58,12 +61,12 @@ def send_pv_otp(user, plain_code):
     except Exception as error:
         logger.exception("PV OTP email delivery failed for user=%s", user.pk)
         raise OtpDeliveryError(
-            "Le code OTP n'a pas pu etre envoye. Reessayez plus tard ou contactez la DDE."
+            _("Le code OTP n'a pas pu etre envoye. Reessayez plus tard ou contactez la DDE.")
         ) from error
 
     if sent != 1:
         raise OtpDeliveryError(
-            "Le code OTP n'a pas pu etre envoye. Reessayez plus tard ou contactez la DDE."
+            _("Le code OTP n'a pas pu etre envoye. Reessayez plus tard ou contactez la DDE.")
         )
 
 
@@ -84,7 +87,7 @@ def request_pv_otp(user, dossier, pv):
         )
         if latest_otp and latest_otp.created_at > cooldown_ends_at:
             raise OtpRequestTooSoon(
-                "Un code vient deja d'etre demande. Attendez avant d'en demander un autre."
+                _("Un code vient deja d'etre demande. Attendez avant d'en demander un autre.")
             )
 
         OtpCode.objects.filter(
@@ -132,29 +135,36 @@ def verify_pv_otp(user, dossier, pv, submitted_code, ip_address="", user_agent="
 
         otp = get_latest_usable_otp(current_user, pv)
         if not otp:
-            return False, "Aucun code OTP valide n'a ete demande."
+            return False, _("Aucun code OTP valide n'a ete demande.")
 
         now = timezone.now()
         if otp.expires_at <= now:
-            return False, "Le code OTP a expire."
+            return False, _("Le code OTP a expire.")
 
         if otp.attempts >= otp.max_attempts:
-            return False, "Le nombre maximum de tentatives est atteint."
+            return False, _("Le nombre maximum de tentatives est atteint.")
 
         otp.attempts += 1
         if not check_password(submitted_code, otp.code_hash):
             otp.save(update_fields=["attempts"])
-            return False, "Code OTP incorrect."
+            return False, _("Code OTP incorrect.")
 
         otp.used_at = now
         otp.save(update_fields=["attempts", "used_at"])
 
-        pdf_hash = generate_signed_pv_pdf(pv, current_user.administration)
+        pdf_hash = create_signed_pv_pdf(pv, current_user.administration)
 
         pv.is_signed = True
         pv.signed_at = now
         pv.pdf_hash_sha256 = pdf_hash
-        pv.save(update_fields=["is_signed", "signed_at", "pdf_hash_sha256"])
+        pv.save(
+            update_fields=[
+                "signed_pdf",
+                "is_signed",
+                "signed_at",
+                "pdf_hash_sha256",
+            ]
+        )
 
         SignatureOtpPv.objects.create(
             pv=pv,
@@ -167,4 +177,4 @@ def verify_pv_otp(user, dossier, pv, submitted_code, ip_address="", user_agent="
             pdf_hash_sha256=pdf_hash,
         )
 
-    return True, "PV signe avec succes."
+    return True, _("PV signe avec succes.")

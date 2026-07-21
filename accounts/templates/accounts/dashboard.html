@@ -1,13 +1,16 @@
+{% load i18n %}
+{% get_current_language as CURRENT_LANGUAGE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!doctype html>
-<html lang="fr">
+<html lang="{{ CURRENT_LANGUAGE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Tableau de bord | Extranet Affectation</title>
+    <title>{% trans "Tableau de bord" %} | Extranet Affectation</title>
     <style>
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
+            font-family: Arial, Tahoma, sans-serif;
             background: #f3f6f8;
             color: #17202a;
         }
@@ -76,34 +79,73 @@
             font: inherit;
             cursor: pointer;
         }
+
+        .language-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .language-selector label {
+            font-weight: 700;
+        }
+
+        .language-selector select {
+            padding: 7px 9px;
+        }
     </style>
 </head>
 <body>
     <header>
         <h1>Extranet Affectation</h1>
-        <form method="post" action="{% url 'accounts:logout' %}">
-            {% csrf_token %}
-            <button type="submit">Se deconnecter</button>
-        </form>
+        <div class="header-actions">
+            {% include "includes/language_selector.html" %}
+            <form method="post" action="{% url 'accounts:logout' %}">
+                {% csrf_token %}
+                <button type="submit">{% trans "Se deconnecter" %}</button>
+            </form>
+        </div>
     </header>
 
     <main>
         <section>
-            <h2>Tableau de bord</h2>
+            <h2>{% trans "Tableau de bord" %}</h2>
             <dl>
-                <dt>Utilisateur</dt>
+                <dt>{% trans "Utilisateur" %}</dt>
                 <dd>{{ request.user.get_full_name|default:request.user.username }}</dd>
 
-                <dt>Role</dt>
-                <dd>{{ request.user.get_role_display }}</dd>
+                <dt>{% trans "Role" %}</dt>
+                <dd>
+                    {% if request.user.role == "consultation" %}
+                        {% trans "Consultation uniquement" %}
+                    {% elif request.user.role == "signataire" %}
+                        {% trans "Signataire" %}
+                    {% elif request.user.role == "admin_organisme" %}
+                        {% trans "Administrateur organisme" %}
+                    {% else %}
+                        {% trans "Administrateur DDE" %}
+                    {% endif %}
+                </dd>
 
-                <dt>Administration</dt>
-                <dd>{{ request.user.administration|default:"Non renseignee" }}</dd>
+                <dt>{% trans "Administration" %}</dt>
+                <dd>
+                    {% if request.user.administration %}
+                        {{ request.user.administration }}
+                    {% else %}
+                        {% trans "Non renseignee" %}
+                    {% endif %}
+                </dd>
             </dl>
             <div class="actions">
-                <a href="{% url 'affectations:dossier_list' %}">Consulter mes dossiers</a>
+                <a href="{% url 'affectations:dossier_list' %}">{% trans "Consulter mes dossiers" %}</a>
                 {% if request.user.can_manage_organism_users %}
-                    <a href="{% url 'accounts:organism_user_list' %}">Gerer les utilisateurs</a>
+                    <a href="{% url 'accounts:organism_user_list' %}">{% trans "Gerer les utilisateurs" %}</a>
                 {% endif %}
             </div>
         </section>

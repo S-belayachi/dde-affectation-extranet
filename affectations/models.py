@@ -98,16 +98,13 @@ class PvAffectation(models.Model):
         related_name="pv_affectations",
     )
 
-    template_name = models.CharField(
-        max_length=150,
-        default="pv_affectation_template.docx",
-    )
-    generated_docx = models.CharField(max_length=500, blank=True)
-    generated_pdf = models.CharField(max_length=500, blank=True)
+    source_filename = models.CharField(max_length=500, blank=True)
+    source_pdf_hash_sha256 = models.CharField(max_length=64, blank=True)
+    signed_pdf = models.CharField(max_length=500, blank=True)
     pdf_hash_sha256 = models.CharField(max_length=64, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
-    generated_at = models.DateTimeField(blank=True, null=True)
+    source_retrieved_at = models.DateTimeField(blank=True, null=True)
     is_signed = models.BooleanField(default=False)
     signed_at = models.DateTimeField(blank=True, null=True)
 

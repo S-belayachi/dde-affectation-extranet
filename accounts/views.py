@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.translation import gettext as _
 
 from .decorators import capability_required
 from .forms import (
@@ -60,8 +61,8 @@ def organism_user_create(request):
         "accounts/organism_user_form.html",
         {
             "form": form,
-            "form_title": "Ajouter un utilisateur",
-            "submit_label": "Creer l'utilisateur",
+            "form_title": _("Ajouter un utilisateur"),
+            "submit_label": _("Creer l'utilisateur"),
         },
     )
 
@@ -90,8 +91,8 @@ def organism_user_update(request, user_id):
         "accounts/organism_user_form.html",
         {
             "form": form,
-            "form_title": "Modifier un utilisateur",
-            "submit_label": "Enregistrer",
+            "form_title": _("Modifier un utilisateur"),
+            "submit_label": _("Enregistrer"),
             "managed_user": managed_user,
         },
     )

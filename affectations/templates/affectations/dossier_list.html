@@ -1,13 +1,16 @@
+{% load i18n %}
+{% get_current_language as CURRENT_LANGUAGE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!doctype html>
-<html lang="fr">
+<html lang="{{ CURRENT_LANGUAGE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Dossiers d'affectation | Extranet Affectation</title>
+    <title>{% trans "Dossiers d'affectation" %} | Extranet Affectation</title>
     <style>
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
+            font-family: Arial, Tahoma, sans-serif;
             background: #f3f6f8;
             color: #17202a;
         }
@@ -79,7 +82,7 @@
         td {
             padding: 12px 14px;
             border-bottom: 1px solid #e5ebef;
-            text-align: left;
+            text-align: start;
             vertical-align: top;
         }
 
@@ -108,27 +111,43 @@
             font: inherit;
             cursor: pointer;
         }
+
+        .header-actions,
+        .language-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .language-selector label {
+            font-weight: 700;
+        }
+
+        .language-selector select {
+            padding: 7px 9px;
+        }
     </style>
 </head>
 <body>
     <header>
         <h1>Extranet Affectation</h1>
         <nav>
-            <a href="{% url 'accounts:dashboard' %}">Tableau de bord</a>
+            <a href="{% url 'accounts:dashboard' %}">{% trans "Tableau de bord" %}</a>
+            {% include "includes/language_selector.html" %}
             <form method="post" action="{% url 'accounts:logout' %}">
                 {% csrf_token %}
-                <button type="submit">Se deconnecter</button>
+                <button type="submit">{% trans "Se deconnecter" %}</button>
             </form>
         </nav>
     </header>
 
     <main>
         <section class="summary">
-            <h2>Dossiers d'affectation</h2>
+            <h2>{% trans "Dossiers d'affectation" %}</h2>
             {% if administration %}
-                <p>Administration beneficiaire : {{ administration.nom }}</p>
+                <p>{% trans "Administration beneficiaire :" %} {{ administration.nom }}</p>
             {% else %}
-                <p>Aucune administration beneficiaire n'est associee a votre compte.</p>
+                <p>{% trans "Aucune administration beneficiaire n'est associee a votre compte." %}</p>
             {% endif %}
         </section>
 
@@ -137,14 +156,14 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Numero dossier</th>
-                            <th>Projet</th>
-                            <th>Type affectation</th>
-                            <th>Statut dossier</th>
+                            <th>{% trans "Numero dossier" %}</th>
+                            <th>{% trans "Projet" %}</th>
+                            <th>{% trans "Type affectation" %}</th>
+                            <th>{% trans "Statut dossier" %}</th>
                             <th>PV</th>
-                            <th>Ouverture</th>
+                            <th>{% trans "Ouverture" %}</th>
                             <th>DR</th>
-                            <th>Delegation</th>
+                            <th>{% trans "Delegation" %}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -169,7 +188,7 @@
             </div>
         {% else %}
             <div class="empty">
-                Aucun dossier d'affectation n'est disponible pour votre compte.
+                {% trans "Aucun dossier d'affectation n'est disponible pour votre compte." %}
             </div>
         {% endif %}
     </main>

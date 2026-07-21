@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
 
 
 User = get_user_model()
@@ -17,7 +18,7 @@ MANAGED_ORGANISM_ROLES = (
 class ExtranetAuthenticationForm(AuthenticationForm):
     error_messages = {
         **AuthenticationForm.error_messages,
-        "not_extranet_user": (
+        "not_extranet_user": _(
             "Ce compte est reserve a l'administration interne DDE. "
             "Veuillez utiliser l'interface Django Admin."
         ),
@@ -36,11 +37,11 @@ class ExtranetAuthenticationForm(AuthenticationForm):
 class OrganismUserBaseForm(forms.ModelForm):
     role = forms.ChoiceField(
         choices=[
-            (User.ROLE_CONSULTATION, "Consultation uniquement"),
-            (User.ROLE_SIGNATAIRE, "Signataire"),
-            (User.ROLE_ADMIN_ORGANISME, "Administrateur organisme"),
+            (User.ROLE_CONSULTATION, _("Consultation uniquement")),
+            (User.ROLE_SIGNATAIRE, _("Signataire")),
+            (User.ROLE_ADMIN_ORGANISME, _("Administrateur organisme")),
         ],
-        label="Role",
+        label=_("Role"),
     )
 
     class Meta:
@@ -61,17 +62,17 @@ class OrganismUserBaseForm(forms.ModelForm):
             "is_active",
         )
         labels = {
-            "username": "Identifiant",
-            "first_name": "Prenom",
-            "last_name": "Nom",
-            "email": "Email",
-            "nom_ar": "Nom en arabe",
-            "prenom_ar": "Prenom en arabe",
-            "fonction": "Fonction",
-            "telephone": "Telephone",
-            "matricule": "Matricule",
-            "peut_signer": "Peut signer",
-            "is_active": "Compte actif",
+            "username": _("Identifiant"),
+            "first_name": _("Prenom"),
+            "last_name": _("Nom"),
+            "email": _("Email"),
+            "nom_ar": _("Nom en arabe"),
+            "prenom_ar": _("Prenom en arabe"),
+            "fonction": _("Fonction"),
+            "telephone": _("Telephone"),
+            "matricule": _("Matricule"),
+            "peut_signer": _("Peut signer"),
+            "is_active": _("Compte actif"),
         }
 
     def clean(self):
@@ -81,19 +82,19 @@ class OrganismUserBaseForm(forms.ModelForm):
         elif not (cleaned_data.get("email") or "").strip():
             self.add_error(
                 "email",
-                "Une adresse e-mail est obligatoire pour un signataire OTP.",
+                _("Une adresse e-mail est obligatoire pour un signataire OTP."),
             )
         return cleaned_data
 
 
 class OrganismUserCreateForm(OrganismUserBaseForm):
     password1 = forms.CharField(
-        label="Mot de passe",
+        label=_("Mot de passe"),
         strip=False,
         widget=forms.PasswordInput,
     )
     password2 = forms.CharField(
-        label="Confirmation du mot de passe",
+        label=_("Confirmation du mot de passe"),
         strip=False,
         widget=forms.PasswordInput,
     )
@@ -111,7 +112,7 @@ class OrganismUserCreateForm(OrganismUserBaseForm):
         password2 = cleaned_data.get("password2")
 
         if password1 and password2 and password1 != password2:
-            self.add_error("password2", "Les deux mots de passe ne correspondent pas.")
+            self.add_error("password2", _("Les deux mots de passe ne correspondent pas."))
 
         return cleaned_data
 

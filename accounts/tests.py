@@ -44,6 +44,21 @@ class AuthenticationFlowTests(TestCase):
 
         self.assertRedirects(response, reverse("accounts:dashboard"))
 
+    def test_user_can_switch_the_extranet_to_arabic(self):
+        self.client.force_login(self.user)
+        dashboard_url = reverse("accounts:dashboard")
+
+        response = self.client.post(
+            reverse("set_language"),
+            {"language": "ar", "next": dashboard_url},
+        )
+        self.assertRedirects(response, dashboard_url)
+
+        response = self.client.get(dashboard_url)
+
+        self.assertContains(response, "لوحة التحكم")
+        self.assertContains(response, 'lang="ar" dir="rtl"')
+
     def test_logout_redirects_to_login(self):
         self.client.force_login(self.user)
 

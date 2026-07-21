@@ -248,9 +248,8 @@ Use the project virtual environment for Django commands:
 ## Future Work
 
 - Complete official details for beneficiary administrations: codes, Arabic names, addresses, contact emails, and phone numbers.
-- Keep `LIBREOFFICE_PATH` configured per environment for DOCX-to-PDF conversion.
 - Configure the official SMTP credentials and real email addresses for every `signataire` before production use.
-- Replace the placeholder PV template only after mapping the approved Arabic/French fields in `PV_affectation_editable.docx` to the imported dossier data and structured administration data.
+- Establish the AMLACS export process that places each official PDF in `pv_documents/official/` using the filename contract in `PV_STORAGE.md`.
 
 ### 2026-07-14
 
@@ -268,3 +267,20 @@ Use the project virtual environment for Django commands:
 - Added protected internal DDE access to signed PV PDFs at `/supervision/pvs/<pv_id>/document-signe/`.
 - Only `admin_dde` users can open this document; beneficiary users remain blocked after signature. Signed PV entries in Django Admin now include a `Voir le PDF signe` link.
 - Validation passed: `manage.py check`, `manage.py makemigrations --check --dry-run`, and 17 affectations tests.
+- Replaced PV template/DOCX/LibreOffice generation with retrieval of the official AMLACS PDF from a private directory.
+- Added `PV_DOCUMENT_ROOT` with sibling private folders: `official/` for AMLACS PDFs and `signed/` for Extranet-created signed copies.
+- Added `affectations.0005_replace_generated_pv_with_amlacs_pdf_storage`, replacing template/DOCX metadata with source filename/hash and signed PDF metadata.
+- Added PDF integrity checks: the source file hash is recorded when OTP is requested, and a changed source PDF cannot be signed with that OTP.
+- Added `PyMuPDF==1.27.1` to stamp the signed copy with the electronic-signature line while leaving the official AMLACS source unchanged.
+- Removed the unused PV DOCX template and documented the private storage and filename contract in `PV_STORAGE.md`.
+- Migrated the existing signed test/audit PDFs into `pv_documents/signed/`.
+- Validation passed: `manage.py check`, `manage.py makemigrations --check --dry-run`, and 18 affectations tests.
+
+### 2026-07-21
+
+- Added French/Arabic Extranet localization with a persistent language selector, Arabic right-to-left layout, and Arabic translations for login, dashboard, dossier/PV, OTP, and user-management workflows.
+- Restricted the `signataire` dossier list and direct dossier access to dossiers whose PV status is `Signé par DR`; consultation and organism-admin users keep access to all dossiers in their administration.
+- Removed the obsolete `generated_documents/` directory, including legacy generated DOCX/PDF test artifacts.
+- Removed the unused `LIBREOFFICE_PATH` setting and the obsolete `generated_documents/` Git ignore rule.
+- The active PV workflow now exclusively retrieves official AMLACS PDFs from `pv_documents/official/` and creates signed copies in `pv_documents/signed/`.
+- Historical migration and progress entries remain as an audit trail; no active code uses the previous DOCX-generation workflow.

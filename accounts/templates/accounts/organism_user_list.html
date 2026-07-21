@@ -1,13 +1,16 @@
+{% load i18n %}
+{% get_current_language as CURRENT_LANGUAGE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!doctype html>
-<html lang="fr">
+<html lang="{{ CURRENT_LANGUAGE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Utilisateurs | Extranet Affectation</title>
+    <title>{% trans "Utilisateurs" %} | Extranet Affectation</title>
     <style>
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
+            font-family: Arial, Tahoma, sans-serif;
             background: #f3f6f8;
             color: #17202a;
         }
@@ -89,7 +92,7 @@
         td {
             padding: 12px 14px;
             border-bottom: 1px solid #e5ebef;
-            text-align: left;
+            text-align: start;
             vertical-align: top;
         }
 
@@ -111,26 +114,41 @@
             font: inherit;
             cursor: pointer;
         }
+
+        .language-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .language-selector label {
+            font-weight: 700;
+        }
+
+        .language-selector select {
+            padding: 7px 9px;
+        }
     </style>
 </head>
 <body>
     <header>
         <h1>Extranet Affectation</h1>
         <nav>
-            <a href="{% url 'accounts:dashboard' %}">Tableau de bord</a>
-            <a href="{% url 'affectations:dossier_list' %}">Dossiers</a>
+            <a href="{% url 'accounts:dashboard' %}">{% trans "Tableau de bord" %}</a>
+            <a href="{% url 'affectations:dossier_list' %}">{% trans "Dossiers" %}</a>
+            {% include "includes/language_selector.html" %}
             <form method="post" action="{% url 'accounts:logout' %}">
                 {% csrf_token %}
-                <button type="submit">Se deconnecter</button>
+                <button type="submit">{% trans "Se deconnecter" %}</button>
             </form>
         </nav>
     </header>
 
     <main>
         <section class="summary">
-            <h2>Utilisateurs de mon organisme</h2>
+            <h2>{% trans "Utilisateurs de mon organisme" %}</h2>
             <p>{{ administration.nom }}</p>
-            <a class="primary" href="{% url 'accounts:organism_user_create' %}">Ajouter un utilisateur</a>
+            <a class="primary" href="{% url 'accounts:organism_user_create' %}">{% trans "Ajouter un utilisateur" %}</a>
         </section>
 
         {% if managed_users %}
@@ -138,13 +156,13 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Identifiant</th>
-                            <th>Nom complet</th>
+                            <th>{% trans "Identifiant" %}</th>
+                            <th>{% trans "Nom complet" %}</th>
                             <th>Email</th>
-                            <th>Role</th>
-                            <th>Peut signer</th>
-                            <th>Actif</th>
-                            <th>Action</th>
+                            <th>{% trans "Role" %}</th>
+                            <th>{% trans "Peut signer" %}</th>
+                            <th>{% trans "Actif" %}</th>
+                            <th>{% trans "Action" %}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -153,11 +171,19 @@
                                 <td>{{ managed_user.username }}</td>
                                 <td>{{ managed_user.get_full_name|default:"-" }}</td>
                                 <td>{{ managed_user.email|default:"-" }}</td>
-                                <td>{{ managed_user.get_role_display }}</td>
-                                <td>{{ managed_user.peut_signer|yesno:"Oui,Non" }}</td>
-                                <td>{{ managed_user.is_active|yesno:"Oui,Non" }}</td>
                                 <td>
-                                    <a href="{% url 'accounts:organism_user_update' managed_user.id %}">Modifier</a>
+                                    {% if managed_user.role == "consultation" %}
+                                        {% trans "Consultation uniquement" %}
+                                    {% elif managed_user.role == "signataire" %}
+                                        {% trans "Signataire" %}
+                                    {% else %}
+                                        {% trans "Administrateur organisme" %}
+                                    {% endif %}
+                                </td>
+                                <td>{% if managed_user.peut_signer %}{% trans "Oui" %}{% else %}{% trans "Non" %}{% endif %}</td>
+                                <td>{% if managed_user.is_active %}{% trans "Oui" %}{% else %}{% trans "Non" %}{% endif %}</td>
+                                <td>
+                                    <a href="{% url 'accounts:organism_user_update' managed_user.id %}">{% trans "Modifier" %}</a>
                                 </td>
                             </tr>
                         {% endfor %}
@@ -166,7 +192,7 @@
             </div>
         {% else %}
             <div class="empty">
-                Aucun utilisateur a gerer pour le moment.
+                {% trans "Aucun utilisateur a gerer pour le moment." %}
             </div>
         {% endif %}
     </main>

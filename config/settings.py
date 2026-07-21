@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 import os
 from pathlib import Path
 
+from django.utils.translation import gettext_lazy as _
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -71,6 +73,7 @@ AUTH_USER_MODEL = 'accounts.CustomUser'
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -135,7 +138,14 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'fr-fr'
+LANGUAGE_CODE = 'fr'
+
+LANGUAGES = [
+    ('fr', _('French')),
+    ('ar', _('Arabic')),
+]
+
+LOCALE_PATHS = [BASE_DIR / 'locale']
 
 TIME_ZONE = 'Africa/Casablanca'
 
@@ -156,11 +166,11 @@ LOGIN_REDIRECT_URL = 'accounts:dashboard'
 LOGOUT_REDIRECT_URL = 'accounts:login'
 
 
-# Document generation
-DOCUMENT_TEMPLATE_ROOT = BASE_DIR / 'document_templates'
-GENERATED_DOCUMENT_ROOT = BASE_DIR / 'generated_documents'
-LIBREOFFICE_PATH = os.environ.get('LIBREOFFICE_PATH', 'soffice')
-PV_ALLOW_DEVELOPMENT_PDF_FALLBACK = DEBUG
+# Official AMLACS PV storage. Both folders remain private and must never be
+# exposed through Django media/static URLs.
+PV_DOCUMENT_ROOT = Path(os.environ.get('PV_DOCUMENT_ROOT', BASE_DIR / 'pv_documents'))
+AMLACS_PV_OFFICIAL_ROOT = PV_DOCUMENT_ROOT / 'official'
+SIGNED_PV_ROOT = PV_DOCUMENT_ROOT / 'signed'
 
 
 # PV OTP settings

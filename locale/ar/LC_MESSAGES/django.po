@@ -1,0 +1,287 @@
+msgid ""
+msgstr "Project-Id-Version: affectation-extranet\nLanguage: ar\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\nPlural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5;\n"
+
+msgid "French"
+msgstr "الفرنسية"
+
+msgid "Arabic"
+msgstr "العربية"
+
+msgid "Ce compte est reserve a l'administration interne DDE. Veuillez utiliser l'interface Django Admin."
+msgstr "هذا الحساب مخصص للإدارة الداخلية للـDDE. يرجى استخدام واجهة إدارة Django."
+
+msgid "Consultation uniquement"
+msgstr "اطلاع فقط"
+
+msgid "Signataire"
+msgstr "الموقّع"
+
+msgid "Administrateur organisme"
+msgstr "مسؤول المؤسسة"
+
+msgid "Administrateur DDE"
+msgstr "مسؤول DDE"
+
+msgid "Role"
+msgstr "الدور"
+
+msgid "Identifiant"
+msgstr "اسم المستخدم"
+
+msgid "Prenom"
+msgstr "الاسم الشخصي"
+
+msgid "Nom"
+msgstr "الاسم العائلي"
+
+msgid "Email"
+msgstr "البريد الإلكتروني"
+
+msgid "Nom en arabe"
+msgstr "الاسم بالعربية"
+
+msgid "Prenom en arabe"
+msgstr "الاسم الشخصي بالعربية"
+
+msgid "Fonction"
+msgstr "الصفة الوظيفية"
+
+msgid "Telephone"
+msgstr "الهاتف"
+
+msgid "Matricule"
+msgstr "الرقم التأجيري"
+
+msgid "Peut signer"
+msgstr "مخوّل بالتوقيع"
+
+msgid "Compte actif"
+msgstr "الحساب نشط"
+
+msgid "Une adresse e-mail est obligatoire pour un signataire OTP."
+msgstr "عنوان بريد إلكتروني إلزامي للموقّع عبر رمز OTP."
+
+msgid "Mot de passe"
+msgstr "كلمة المرور"
+
+msgid "Confirmation du mot de passe"
+msgstr "تأكيد كلمة المرور"
+
+msgid "Les deux mots de passe ne correspondent pas."
+msgstr "كلمتا المرور غير متطابقتين."
+
+msgid "Ajouter un utilisateur"
+msgstr "إضافة مستخدم"
+
+msgid "Creer l'utilisateur"
+msgstr "إنشاء المستخدم"
+
+msgid "Modifier un utilisateur"
+msgstr "تعديل المستخدم"
+
+msgid "Enregistrer"
+msgstr "حفظ"
+
+msgid "PV officiel indisponible."
+msgstr "محضر التخصيص الرسمي غير متاح."
+
+msgid "PDF signe indisponible."
+msgstr "ملف PDF الموقّع غير متاح."
+
+msgid "Code OTP envoye a votre adresse e-mail."
+msgstr "تم إرسال رمز OTP إلى بريدك الإلكتروني."
+
+msgid "Aucun PV officiel n'a ete prepare pour signature."
+msgstr "لم يتم إعداد أي محضر تخصيص رسمي للتوقيع."
+
+msgid "Votre compte ne dispose pas d'adresse e-mail. Contactez votre administrateur organisme."
+msgstr "لا يتوفر حسابك على عنوان بريد إلكتروني. يرجى الاتصال بمسؤول مؤسستك."
+
+msgid "Signature PV - code de verification"
+msgstr "توقيع محضر التخصيص - رمز التحقق"
+
+msgid "Vous avez demande la signature d'un PV d'affectation.\n\n"
+msgstr "لقد طلبت توقيع محضر تخصيص.\n\n"
+
+msgid "Votre code de verification est : %(code)s\n\n"
+msgstr "رمز التحقق الخاص بك هو: %(code)s\n\n"
+
+msgid "Ce code expire dans %(minutes)s minutes et ne peut etre utilise qu'une seule fois. "
+msgstr "تنتهي صلاحية هذا الرمز خلال %(minutes)s دقائق ولا يمكن استعماله إلا مرة واحدة. "
+
+msgid "Ne le communiquez a personne."
+msgstr "لا تشاركه مع أي شخص."
+
+msgid "Le code OTP n'a pas pu etre envoye. Reessayez plus tard ou contactez la DDE."
+msgstr "تعذر إرسال رمز OTP. يرجى إعادة المحاولة لاحقاً أو الاتصال بـDDE."
+
+msgid "Un code vient deja d'etre demande. Attendez avant d'en demander un autre."
+msgstr "تم طلب رمز للتو. يرجى الانتظار قبل طلب رمز آخر."
+
+msgid "Aucun code OTP valide n'a ete demande."
+msgstr "لم يتم طلب رمز OTP صالح."
+
+msgid "Le code OTP a expire."
+msgstr "انتهت صلاحية رمز OTP."
+
+msgid "Le nombre maximum de tentatives est atteint."
+msgstr "تم بلوغ الحد الأقصى لعدد المحاولات."
+
+msgid "Code OTP incorrect."
+msgstr "رمز OTP غير صحيح."
+
+msgid "PV signe avec succes."
+msgstr "تم توقيع محضر التخصيص بنجاح."
+
+msgid "Langue"
+msgstr "اللغة"
+
+msgid "Changer"
+msgstr "تغيير"
+
+msgid "Connexion"
+msgstr "تسجيل الدخول"
+
+msgid "Connexion Extranet"
+msgstr "تسجيل الدخول إلى الإكسترانت"
+
+msgid "Acces reserve aux administrations beneficiaires."
+msgstr "الولوج مخصص للإدارات المستفيدة."
+
+msgid "Identifiant ou mot de passe incorrect."
+msgstr "اسم المستخدم أو كلمة المرور غير صحيحين."
+
+msgid "Se connecter"
+msgstr "تسجيل الدخول"
+
+msgid "Tableau de bord"
+msgstr "لوحة التحكم"
+
+msgid "Se deconnecter"
+msgstr "تسجيل الخروج"
+
+msgid "Utilisateur"
+msgstr "المستخدم"
+
+msgid "Administration"
+msgstr "الإدارة"
+
+msgid "Non renseignee"
+msgstr "غير محددة"
+
+msgid "Consulter mes dossiers"
+msgstr "عرض ملفاتي"
+
+msgid "Gerer les utilisateurs"
+msgstr "إدارة المستخدمين"
+
+msgid "Dossiers d'affectation"
+msgstr "ملفات التخصيص"
+
+msgid "Administration beneficiaire :"
+msgstr "الإدارة المستفيدة:"
+
+msgid "Aucune administration beneficiaire n'est associee a votre compte."
+msgstr "لا توجد إدارة مستفيدة مرتبطة بحسابك."
+
+msgid "Numero dossier"
+msgstr "رقم الملف"
+
+msgid "Projet"
+msgstr "المشروع"
+
+msgid "Type affectation"
+msgstr "نوع التخصيص"
+
+msgid "Statut dossier"
+msgstr "حالة الملف"
+
+msgid "Ouverture"
+msgstr "تاريخ الفتح"
+
+msgid "Delegation"
+msgstr "المندوبية"
+
+msgid "Aucun dossier d'affectation n'est disponible pour votre compte."
+msgstr "لا يوجد أي ملف تخصيص متاح لحسابك."
+
+msgid "Dossier"
+msgstr "الملف"
+
+msgid "Dossiers"
+msgstr "الملفات"
+
+msgid "Dossier d'affectation"
+msgstr "ملف التخصيص"
+
+msgid "PV d'affectation"
+msgstr "محضر التخصيص"
+
+msgid "Numero PV"
+msgstr "رقم المحضر"
+
+msgid "Type PV"
+msgstr "نوع المحضر"
+
+msgid "Statut PV"
+msgstr "حالة المحضر"
+
+msgid "Signature Extranet"
+msgstr "توقيع الإكسترانت"
+
+msgid "PV signe le %(signed_at)s"
+msgstr "تم توقيع محضر التخصيص بتاريخ %(signed_at)s"
+
+msgid "En attente de signature beneficiaire"
+msgstr "في انتظار توقيع الإدارة المستفيدة"
+
+msgid "Non disponible"
+msgstr "غير متاح"
+
+msgid "Consulter le PV"
+msgstr "عرض المحضر"
+
+msgid "Demander OTP"
+msgstr "طلب رمز OTP"
+
+msgid "Code OTP"
+msgstr "رمز OTP"
+
+msgid "Signer par OTP"
+msgstr "التوقيع عبر OTP"
+
+msgid "Ce PV a deja ete signe. Le document n'est plus accessible via l'Extranet beneficiaire."
+msgstr "تم توقيع هذا المحضر مسبقاً. لم يعد المستند متاحاً عبر إكسترانت الإدارة المستفيدة."
+
+msgid "Le PV n'est pas disponible pour signature a cette etape."
+msgstr "المحضر غير متاح للتوقيع في هذه المرحلة."
+
+msgid "Utilisateurs"
+msgstr "المستخدمون"
+
+msgid "Annuler"
+msgstr "إلغاء"
+
+msgid "Utilisateurs de mon organisme"
+msgstr "مستخدمو مؤسستي"
+
+msgid "Nom complet"
+msgstr "الاسم الكامل"
+
+msgid "Actif"
+msgstr "نشط"
+
+msgid "Action"
+msgstr "إجراء"
+
+msgid "Oui"
+msgstr "نعم"
+
+msgid "Non"
+msgstr "لا"
+
+msgid "Modifier"
+msgstr "تعديل"
+
+msgid "Aucun utilisateur a gerer pour le moment."
+msgstr "لا يوجد مستخدمون لإدارتهم حالياً."

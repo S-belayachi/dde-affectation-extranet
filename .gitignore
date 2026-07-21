@@ -9,7 +9,7 @@ local_settings.py
 db.sqlite3
 media/
 staticfiles/
-generated_documents/
+pv_documents/
 
 # Environment
 .env

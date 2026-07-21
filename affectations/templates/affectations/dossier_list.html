@@ -150,7 +150,11 @@
                     <tbody>
                         {% for dossier in dossiers %}
                             <tr>
-                                <td>{{ dossier.num_dossier|default:"-" }}</td>
+                                <td>
+                                    <a href="{% url 'affectations:dossier_detail' dossier.import_id %}">
+                                        {{ dossier.num_dossier|default:"-" }}
+                                    </a>
+                                </td>
                                 <td>{{ dossier.denomination_projet|default:"-" }}</td>
                                 <td>{{ dossier.type_affectation|default:"-" }}</td>
                                 <td>{{ dossier.statut_dossier|default:"-" }}</td>

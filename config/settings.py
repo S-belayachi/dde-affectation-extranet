@@ -154,3 +154,38 @@ STATIC_URL = 'static/'
 LOGIN_URL = 'accounts:login'
 LOGIN_REDIRECT_URL = 'accounts:dashboard'
 LOGOUT_REDIRECT_URL = 'accounts:login'
+
+
+# Document generation
+DOCUMENT_TEMPLATE_ROOT = BASE_DIR / 'document_templates'
+GENERATED_DOCUMENT_ROOT = BASE_DIR / 'generated_documents'
+LIBREOFFICE_PATH = os.environ.get('LIBREOFFICE_PATH', 'soffice')
+PV_ALLOW_DEVELOPMENT_PDF_FALLBACK = DEBUG
+
+
+# PV OTP settings
+PV_OTP_EXPIRY_MINUTES = int(os.environ.get('PV_OTP_EXPIRY_MINUTES', '10'))
+PV_OTP_MAX_ATTEMPTS = int(os.environ.get('PV_OTP_MAX_ATTEMPTS', '3'))
+PV_OTP_REQUEST_COOLDOWN_SECONDS = int(
+    os.environ.get('PV_OTP_REQUEST_COOLDOWN_SECONDS', '60')
+)
+PV_PRINT_OTP_TO_CONSOLE = (
+    DEBUG
+    and os.environ.get('PV_PRINT_OTP_TO_CONSOLE', 'False').lower()
+    in ('1', 'true', 'yes', 'on')
+)
+
+
+# Email delivery for PV OTP codes. SMTP credentials belong only in the ignored
+# .env file or in the deployment environment, never in source control.
+EMAIL_BACKEND = os.environ.get(
+    'DJANGO_EMAIL_BACKEND',
+    'django.core.mail.backends.smtp.EmailBackend',
+)
+EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() in ('1', 'true', 'yes', 'on')
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '15'))
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)

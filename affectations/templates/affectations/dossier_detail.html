@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dossier {{ dossier.num_dossier }} | Extranet Affectation</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f3f6f8;
+            color: #17202a;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 16px 24px;
+            background: #fff;
+            border-bottom: 1px solid #d8e0e6;
+        }
+
+        nav {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        a {
+            color: #0f766e;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.25rem;
+        }
+
+        main {
+            width: min(980px, calc(100% - 32px));
+            margin: 32px auto;
+        }
+
+        section {
+            margin-bottom: 18px;
+            padding: 22px;
+            background: #fff;
+            border: 1px solid #d8e0e6;
+            border-radius: 8px;
+        }
+
+        h2 {
+            margin: 0 0 16px;
+            font-size: 1.15rem;
+        }
+
+        dl {
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            gap: 10px 18px;
+            margin: 0;
+        }
+
+        dt {
+            font-weight: 700;
+        }
+
+        dd {
+            margin: 0;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .button,
+        button {
+            display: inline-block;
+            padding: 10px 14px;
+            border: 0;
+            border-radius: 6px;
+            background: #0f766e;
+            color: #fff;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        input {
+            padding: 9px 11px;
+            border: 1px solid #b8c4cc;
+            border-radius: 6px;
+            font: inherit;
+        }
+
+        .message {
+            margin-bottom: 18px;
+            padding: 12px 14px;
+            border-radius: 6px;
+            background: #eef4f3;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Extranet Affectation</h1>
+        <nav>
+            <a href="{% url 'affectations:dossier_list' %}">Dossiers</a>
+            <a href="{% url 'accounts:dashboard' %}">Tableau de bord</a>
+            <form method="post" action="{% url 'accounts:logout' %}">
+                {% csrf_token %}
+                <button type="submit">Se deconnecter</button>
+            </form>
+        </nav>
+    </header>
+
+    <main>
+        {% for message in messages %}
+            <div class="message">{{ message }}</div>
+        {% endfor %}
+
+        <section>
+            <h2>Dossier d'affectation</h2>
+            <dl>
+                <dt>Numero dossier</dt>
+                <dd>{{ dossier.num_dossier|default:"-" }}</dd>
+
+                <dt>Projet</dt>
+                <dd>{{ dossier.denomination_projet|default:"-" }}</dd>
+
+                <dt>Administration</dt>
+                <dd>{{ dossier.administration_beneficiaire|default:"-" }}</dd>
+
+                <dt>Statut dossier</dt>
+                <dd>{{ dossier.statut_dossier|default:"-" }}</dd>
+
+                <dt>DR</dt>
+                <dd>{{ dossier.dr|default:"-" }}</dd>
+
+                <dt>Delegation</dt>
+                <dd>{{ dossier.delegation|default:"-" }}</dd>
+            </dl>
+        </section>
+
+        <section>
+            <h2>PV d'affectation</h2>
+            <dl>
+                <dt>Numero PV</dt>
+                <dd>{{ dossier.numero_pv|default:"-" }}</dd>
+
+                <dt>Type PV</dt>
+                <dd>{{ dossier.type_pv|default:"-" }}</dd>
+
+                <dt>Statut PV</dt>
+                <dd>{{ dossier.statut_pv|default:"-" }}</dd>
+
+                <dt>Signature Extranet</dt>
+                <dd>
+                    {% if pv and pv.is_signed %}
+                        PV signe le {{ pv.signed_at|date:"d/m/Y H:i" }}
+                    {% elif pv_status == "ready_for_beneficiary_signature" %}
+                        En attente de signature beneficiaire
+                    {% else %}
+                        Non disponible
+                    {% endif %}
+                </dd>
+            </dl>
+
+            {% if can_sign_pv %}
+                <div class="actions">
+                    <a class="button" href="{% url 'affectations:pv_pdf' dossier.import_id %}" target="_blank">
+                        Consulter le PV
+                    </a>
+                    <form method="post" action="{% url 'affectations:pv_otp_request' dossier.import_id %}">
+                        {% csrf_token %}
+                        <button type="submit">Demander OTP</button>
+                    </form>
+                </div>
+                <form class="actions" method="post" action="{% url 'affectations:pv_otp_verify' dossier.import_id %}">
+                    {% csrf_token %}
+                    <input
+                        type="text"
+                        name="otp_code"
+                        inputmode="numeric"
+                        pattern="[0-9]{6}"
+                        maxlength="6"
+                        placeholder="Code OTP"
+                        required
+                    >
+                    <button type="submit">Signer par OTP</button>
+                </form>
+            {% elif pv and pv.is_signed %}
+                <p>Ce PV a deja ete signe. Le document n'est plus accessible via l'Extranet beneficiaire.</p>
+            {% else %}
+                <p>Le PV n'est pas disponible pour signature a cette etape.</p>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>

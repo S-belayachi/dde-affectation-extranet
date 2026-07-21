@@ -78,6 +78,11 @@ class OrganismUserBaseForm(forms.ModelForm):
         cleaned_data = super().clean()
         if cleaned_data.get("role") != User.ROLE_SIGNATAIRE:
             cleaned_data["peut_signer"] = False
+        elif not (cleaned_data.get("email") or "").strip():
+            self.add_error(
+                "email",
+                "Une adresse e-mail est obligatoire pour un signataire OTP.",
+            )
         return cleaned_data
 
 

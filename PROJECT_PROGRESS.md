@@ -21,7 +21,7 @@ Clean and harden the early Django MVP setup for the DDE affectation Extranet whi
 - [x] Add role helpers or decorators for `consultation`, `signataire`, `admin_organisme`, and `admin_dde`.
 - [x] Add user-management pages for `admin_organisme` to manage users from only their own administration.
 - [x] Add tests for login, logout, dashboard protection, and organization-based access control.
-- [ ] Later: add OTP-based PV signature workflow with traceability.
+- [x] Add OTP-based PV signature workflow with traceability.
 
 ## Initial Inspection
 
@@ -174,6 +174,51 @@ Use the project virtual environment for Django commands:
 - Validation passed: `.\.venv\Scripts\python.exe manage.py check`.
 - Validation passed: `.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run`.
 - Confirmed the real `admin` account has `can_access_extranet=False` and receives HTTP 403 on `/` and `/dossiers/`.
+- Implemented the PV d'affectation workflow:
+  - managed PV metadata model: `PvAffectation`
+  - hashed OTP model: `OtpCode`
+  - signature proof/audit model: `SignatureOtpPv`
+  - grouped PV key based on administration, dossier number, and PV number
+  - ready status rule: `Signé par DR`
+  - protected dossier detail page at `/dossiers/<import_id>/`
+  - protected PDF view at `/dossiers/<import_id>/pv/`
+  - OTP request and verification views
+  - DDE admin supervision through read-only Django Admin records
+  - beneficiary signing restricted to `can_access_extranet` and `can_sign_pv`
+  - PDF access blocked after successful OTP signature
+- Added document settings:
+  - `DOCUMENT_TEMPLATE_ROOT`
+  - `GENERATED_DOCUMENT_ROOT`
+  - `LIBREOFFICE_PATH`
+  - PV OTP expiry/attempt settings
+- Added `document_templates/pv_affectation/pv_affectation_template.docx` with non-confidential placeholders.
+- Added `generated_documents/` to `.gitignore`.
+- Added `docxtpl` and related document dependencies to `requirements.txt`.
+- Applied migration `affectations.0002_pvaffectation_otpcode_signatureotppv`.
+- Test validation passed: `.\.venv\Scripts\python.exe manage.py test` ran 26 tests successfully.
+- Validation passed: `.\.venv\Scripts\python.exe manage.py check`.
+- Validation passed: `.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run`.
+- Note: LibreOffice is now configured locally; the development-only PDF fallback remains available only while `DEBUG=True` if conversion is unavailable.
+- Configured local LibreOffice path in the ignored `.env` file:
+  - `C:\Program Files\LibreOffice\program\soffice.exe`
+- Verified Django reads `LIBREOFFICE_PATH` and the executable exists.
+- Verified real DOCX-to-PDF conversion with a `Signé par DR` dossier; generated PDF exists and has a SHA-256 hash.
+- Validation passed: `.\.venv\Scripts\python.exe manage.py check`.
+- Validation passed: `.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run`.
+- Test validation passed: `.\.venv\Scripts\python.exe manage.py test` ran 26 tests successfully.
+- Created `signataire_pv_test` for manual PV testing:
+  - role: `signataire`
+  - `peut_signer=True`
+  - administration: `Enseignement Supérieur Et De La Recherche Scientifique`
+  - eligible dossier: import id `6`, dossier `1003/199204/31`, PV `23/2010/04`, status `Signé par DR`
+- Verified `signataire_pv_test` can log in and sees `Consulter le PV` / `Signer par OTP` on dossier `6`.
+- Inserted two development-only PV test rows into the imported source table after explicit confirmation:
+  - import id `10`, dossier `TEST-PV-DR-001`, administration `Education Nationale`, PV `TEST-PV-001`, ready PV status
+  - import id `11`, dossier `TEST-PV-DR-002`, administration `Enseignement Superieur Et De La Recherche Scientifique`, PV `TEST-PV-002`, ready PV status
+- Verified both rows are readable through the unmanaged ORM model.
+- Verified `signataire_education` can see `Consulter le PV` / `Signer par OTP` on dossier `10`.
+- Verified `signataire_pv_test` can see `Consulter le PV` / `Signer par OTP` on dossier `11`.
+- Validation passed: `.\.venv\Scripts\python.exe manage.py check`.
 
 ## Completed Fixes
 
@@ -192,9 +237,34 @@ Use the project virtual environment for Django commands:
 - Added automated tests for authentication, dossier filtering, and organism user-management access control.
 - Created development Extranet test users for manual role testing.
 - Blocked `admin_dde` accounts from beneficiary Extranet login/pages while keeping Django Admin separate.
+- Added PV generation, protected PDF consultation, OTP signature, and signature traceability.
+- Configured and verified LibreOffice headless conversion locally.
+- Created a dedicated signataire account for manual PV testing.
+- Created two development-only ready-to-sign PV test dossiers.
+- Replaced development-only console OTP handling with configurable SMTP email delivery for PV signatures. Console output is now disabled by default and can only be enabled explicitly while `DEBUG=True`.
+- Added OTP request cooldown, explicit invalidation of replaced codes, and fresh permission checks inside the signing transaction.
+- Added migration `affectations.0003_otpcode_invalidated_at_otpcode_invalidation_reason`; it changes only the Django-managed OTP table.
 
 ## Future Work
 
 - Complete official details for beneficiary administrations: codes, Arabic names, addresses, contact emails, and phone numbers.
-- Build Extranet login, dashboard, dossier list, and dossier detail pages.
-- Add OTP-based PV signature workflow later with full traceability.
+- Keep `LIBREOFFICE_PATH` configured per environment for DOCX-to-PDF conversion.
+- Configure the official SMTP credentials and real email addresses for every `signataire` before production use.
+- Replace the placeholder PV template only after mapping the approved Arabic/French fields in `PV_affectation_editable.docx` to the imported dossier data and structured administration data.
+
+### 2026-07-14
+
+- Reviewed the supplied `PV_affectation_editable.docx` template without changing it or the PV generation code.
+- Confirmed it is a one-page Arabic/French PV with official logos and a nine-row property-reference table.
+- Confirmed that it contains visual blanks and hard-coded beneficiary wording rather than `docxtpl` placeholders; personalization must be added before it can be used by the generation service.
+- LibreOffice rendering exposed malformed placeholder-line glyphs in one Arabic paragraph. This must be corrected and re-rendered before the template is adopted for generated PDFs.
+- Added six nullable administration metadata columns directly to the unmanaged source table: `libelle_administration`, `adresse_admi_en_arabe`, `nom_administration`, `adresse_admi_parent`, `nom_admi_parent`, and `qualite_benefic`.
+- Added matching read-only fields to `TableFaitAffectationDatalab` and the Django Admin source-record detail view.
+- Applied state-only migration `affectations.0004_source_administration_fields_state`; it records the external schema for Django without issuing source-table SQL.
+- Validation passed: source fields are readable through the ORM, `manage.py check`, `manage.py makemigrations --check --dry-run`, and 17 affectations tests.
+- Added a signed-PV document stamp: after valid OTP verification, the final DOCX/PDF footer reads `Signé électroniquement par <administration beneficiaire>`.
+- The final PDF is regenerated before the signature record is saved, so the stored PDF SHA-256 hash proves the stamped version of the document.
+- Validation passed: `manage.py check`, `manage.py makemigrations --check --dry-run`, 17 affectations tests, and a LibreOffice visual review of the footer placement.
+- Added protected internal DDE access to signed PV PDFs at `/supervision/pvs/<pv_id>/document-signe/`.
+- Only `admin_dde` users can open this document; beneficiary users remain blocked after signature. Signed PV entries in Django Admin now include a `Voir le PDF signe` link.
+- Validation passed: `manage.py check`, `manage.py makemigrations --check --dry-run`, and 17 affectations tests.

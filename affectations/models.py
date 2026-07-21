@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 
 # Imported DDE/AMLACS source data. This table is owned outside Django and must
@@ -13,6 +14,12 @@ class TableFaitAffectationDatalab(models.Model):
     date_ouverture_dossier = models.DateField(blank=True, null=True)
     denomination_projet = models.TextField(blank=True, null=True)
     administration_beneficiaire = models.CharField(max_length=200, blank=True, null=True)
+    libelle_administration = models.TextField(blank=True, null=True)
+    adresse_admi_en_arabe = models.TextField(blank=True, null=True)
+    nom_administration = models.TextField(blank=True, null=True)
+    adresse_admi_parent = models.TextField(blank=True, null=True)
+    nom_admi_parent = models.TextField(blank=True, null=True)
+    qualite_benefic = models.TextField(blank=True, null=True)
     nature_sommier = models.CharField(max_length=100, blank=True, null=True)
     num_id = models.CharField(max_length=50, blank=True, null=True)
     trn = models.CharField(max_length=20, blank=True, null=True)
@@ -76,3 +83,98 @@ class AdministrationBeneficiaire(models.Model):
 
     def __str__(self):
         return self.nom
+
+
+class PvAffectation(models.Model):
+    source_import_id = models.PositiveBigIntegerField()
+    num_dossier = models.CharField(max_length=50, blank=True, null=True)
+    numero_pv = models.CharField(max_length=50, blank=True, null=True)
+    administration_source_nom = models.CharField(max_length=200)
+    pv_key = models.CharField(max_length=255, unique=True)
+
+    administration = models.ForeignKey(
+        AdministrationBeneficiaire,
+        on_delete=models.PROTECT,
+        related_name="pv_affectations",
+    )
+
+    template_name = models.CharField(
+        max_length=150,
+        default="pv_affectation_template.docx",
+    )
+    generated_docx = models.CharField(max_length=500, blank=True)
+    generated_pdf = models.CharField(max_length=500, blank=True)
+    pdf_hash_sha256 = models.CharField(max_length=64, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    generated_at = models.DateTimeField(blank=True, null=True)
+    is_signed = models.BooleanField(default=False)
+    signed_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = "PV d'affectation"
+        verbose_name_plural = "PV d'affectation"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.num_dossier or '-'} / {self.numero_pv or '-'}"
+
+
+class OtpCode(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="pv_otp_codes",
+    )
+    pv = models.ForeignKey(
+        PvAffectation,
+        on_delete=models.CASCADE,
+        related_name="otp_codes",
+    )
+    code_hash = models.CharField(max_length=128)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(blank=True, null=True)
+    invalidated_at = models.DateTimeField(blank=True, null=True)
+    invalidation_reason = models.CharField(max_length=100, blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    max_attempts = models.PositiveSmallIntegerField(default=3)
+
+    class Meta:
+        verbose_name = "Code OTP PV"
+        verbose_name_plural = "Codes OTP PV"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"OTP PV {self.pv_id} / {self.user_id}"
+
+
+class SignatureOtpPv(models.Model):
+    pv = models.OneToOneField(
+        PvAffectation,
+        on_delete=models.PROTECT,
+        related_name="signature_proof",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="pv_signatures",
+    )
+    administration = models.ForeignKey(
+        AdministrationBeneficiaire,
+        on_delete=models.PROTECT,
+        related_name="pv_signatures",
+    )
+    otp_verified = models.BooleanField(default=True)
+    signed_at = models.DateTimeField()
+    ip_address = models.GenericIPAddressField(blank=True, null=True)
+    user_agent = models.TextField(blank=True)
+    pdf_hash_sha256 = models.CharField(max_length=64)
+
+    class Meta:
+        verbose_name = "Signature OTP PV"
+        verbose_name_plural = "Signatures OTP PV"
+        ordering = ["-signed_at"]
+
+    def __str__(self):
+        return f"Signature PV {self.pv_id} par {self.user_id}"

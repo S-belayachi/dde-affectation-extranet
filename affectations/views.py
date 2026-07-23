@@ -14,9 +14,10 @@ from .services.otp_service import (
     verify_pv_otp,
 )
 from .services.pv_documents import (
+    INTEGRITY_MISSING,
     OfficialPvError,
-    get_signed_pdf_path,
     retrieve_official_pv,
+    verify_signed_pv_integrity,
 )
 from .services.pv_rules import (
     PV_READY_STATUSES,
@@ -90,12 +91,15 @@ def pv_pdf(request, import_id):
 def dde_signed_pv_pdf(request, pv_id):
     """Allow internal DDE supervision of the signed PDF only."""
     pv = get_object_or_404(PvAffectation, pk=pv_id, is_signed=True)
-    try:
-        pdf_path = get_signed_pdf_path(pv)
-    except OfficialPvError as error:
-        raise Http404(_("PDF signe indisponible.")) from error
+    integrity = verify_signed_pv_integrity(pv)
+    if integrity.status == INTEGRITY_MISSING:
+        raise Http404(_("PDF signe indisponible."))
+    if not integrity.is_valid:
+        raise PermissionDenied(
+            _("L'integrite du PDF signe est compromise. Acces bloque.")
+        )
 
-    response = FileResponse(open(pdf_path, "rb"), content_type="application/pdf")
+    response = FileResponse(open(integrity.path, "rb"), content_type="application/pdf")
     response["Content-Disposition"] = f'inline; filename="pv-signe-{pv.id}.pdf"'
     return response
 

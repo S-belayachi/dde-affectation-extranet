@@ -285,3 +285,102 @@ msgstr "تعديل"
 
 msgid "Aucun utilisateur a gerer pour le moment."
 msgstr "لا يوجد مستخدمون لإدارتهم حالياً."
+
+msgid "Aller au contenu principal"
+msgstr "الانتقال إلى المحتوى الرئيسي"
+
+msgid "Direction des Domaines de l'Etat"
+msgstr "مديرية أملاك الدولة"
+
+msgid "Navigation principale"
+msgstr "التنقل الرئيسي"
+
+msgid "Espace extranet securise"
+msgstr "فضاء إكسترانت آمن"
+
+msgid "Espace beneficiaire"
+msgstr "فضاء الإدارة المستفيدة"
+
+msgid "Bienvenue dans votre espace de gestion des dossiers d'affectation."
+msgstr "مرحباً بكم في فضاء تدبير ملفات التخصيص."
+
+msgid "Informations du compte"
+msgstr "معلومات الحساب"
+
+msgid "Services disponibles"
+msgstr "الخدمات المتاحة"
+
+msgid "Accedez aux services autorises pour votre profil."
+msgstr "يمكنكم الولوج إلى الخدمات المصرح بها حسب صلاحيات حسابكم."
+
+msgid "Suivre les dossiers de votre administration."
+msgstr "تتبع ملفات إدارتكم."
+
+msgid "Administrer les comptes de votre organisme."
+msgstr "تدبير حسابات مؤسستكم."
+
+msgid "Espace beneficiaire securise"
+msgstr "فضاء آمن للإدارة المستفيدة"
+
+msgid "Saisissez vos identifiants pour acceder a votre espace."
+msgstr "أدخلوا بيانات الدخول للولوج إلى فضائكم."
+
+msgid "Gestion des acces"
+msgstr "تدبير صلاحيات الولوج"
+
+msgid "Comptes utilisateurs"
+msgstr "حسابات المستخدمين"
+
+msgid "utilisateurs enregistres"
+msgstr "مستخدمون مسجلون"
+
+msgid "Statut"
+msgstr "الحالة"
+
+msgid "Inactif"
+msgstr "غير نشط"
+
+msgid "Aucun utilisateur"
+msgstr "لا يوجد مستخدمون"
+
+msgid "Fil d Ariane"
+msgstr "مسار التنقل"
+
+msgid "Administration :"
+msgstr "الإدارة:"
+
+msgid "Informations de l'utilisateur"
+msgstr "معلومات المستخدم"
+
+msgid "Les champs obligatoires doivent etre renseignes."
+msgstr "يجب تعبئة الحقول الإلزامية."
+
+msgid "Suivi des affectations"
+msgstr "تتبع التخصيصات"
+
+msgid "Liste des dossiers"
+msgstr "لائحة الملفات"
+
+msgid "dossiers disponibles"
+msgstr "ملفات متاحة"
+
+msgid "Aucun dossier disponible"
+msgstr "لا توجد ملفات متاحة"
+
+msgid "Informations du dossier"
+msgstr "معلومات الملف"
+
+msgid "Signe"
+msgstr "موقّع"
+
+msgid "En attente"
+msgstr "في الانتظار"
+
+msgid "Signature du PV"
+msgstr "توقيع محضر التخصيص"
+
+msgid "Signature electronique securisee par code OTP."
+msgstr "توقيع إلكتروني آمن بواسطة رمز OTP."
+
+msgid "Ministere de l'Economie et des Finances - Royaume du Maroc"
+msgstr "وزارة الاقتصاد والمالية - المملكة المغربية"

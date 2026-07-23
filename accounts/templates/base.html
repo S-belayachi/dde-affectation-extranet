@@ -1,0 +1,98 @@
+{% load i18n static %}
+{% get_current_language as CURRENT_LANGUAGE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!doctype html>
+<html lang="{{ CURRENT_LANGUAGE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>{% block title %}Extranet Affectation{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'accounts/extranet.css' %}">
+</head>
+<body>
+    <a class="skip-link" href="#main-content">{% trans "Aller au contenu principal" %}</a>
+
+    <header class="site-header">
+        <div class="masthead">
+            <div class="container masthead__inner">
+                <a class="brand" href="{% url 'accounts:dashboard' %}" aria-label="Extranet Affectation">
+                    <span class="brand__logo">
+                        <img
+                            src="{% static 'accounts/images/mef-logo.png' %}"
+                            alt="{% trans "Ministere de l'Economie et des Finances - Royaume du Maroc" %}"
+                        >
+                    </span>
+                    <span class="brand__copy">
+                        <span class="brand__authority">{% trans "Direction des Domaines de l'Etat" %}</span>
+                        <strong>Extranet Affectation</strong>
+                    </span>
+                </a>
+
+                <div class="masthead__tools">
+                    {% include "includes/language_selector.html" %}
+                    <form method="post" action="{% url 'accounts:logout' %}">
+                        {% csrf_token %}
+                        <button class="button button--quiet button--compact" type="submit">
+                            {% trans "Se deconnecter" %}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="navigation-band">
+            <div class="container navigation-band__inner">
+                <nav class="primary-nav" aria-label="{% trans 'Navigation principale' %}">
+                    <a
+                        href="{% url 'accounts:dashboard' %}"
+                        {% if request.resolver_match.url_name == "dashboard" %}class="is-active" aria-current="page"{% endif %}
+                    >
+                        {% trans "Tableau de bord" %}
+                    </a>
+                    <a
+                        href="{% url 'affectations:dossier_list' %}"
+                        {% if request.resolver_match.app_name == "affectations" %}class="is-active" aria-current="page"{% endif %}
+                    >
+                        {% trans "Dossiers" %}
+                    </a>
+                    {% if request.user.can_manage_organism_users %}
+                        <a
+                            href="{% url 'accounts:organism_user_list' %}"
+                            {% if request.resolver_match.url_name == "organism_user_list" or request.resolver_match.url_name == "organism_user_create" or request.resolver_match.url_name == "organism_user_update" %}class="is-active" aria-current="page"{% endif %}
+                        >
+                            {% trans "Utilisateurs" %}
+                        </a>
+                    {% endif %}
+                </nav>
+
+                <div class="user-context">
+                    <span>{{ request.user.get_full_name|default:request.user.username }}</span>
+                    {% if request.user.administration %}
+                        <small>{{ request.user.administration.nom }}</small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main id="main-content" class="container page-content">
+        {% if messages %}
+            <div class="message-stack" aria-live="polite">
+                {% for message in messages %}
+                    <div class="message message--{{ message.tags|default:'info' }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <div class="container site-footer__inner">
+            <span>{% trans "Direction des Domaines de l'Etat" %}</span>
+            <span>{% trans "Espace extranet securise" %}</span>
+        </div>
+    </footer>
+</body>
+</html>

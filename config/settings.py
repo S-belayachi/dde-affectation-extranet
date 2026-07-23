@@ -171,6 +171,12 @@ LOGOUT_REDIRECT_URL = 'accounts:login'
 PV_DOCUMENT_ROOT = Path(os.environ.get('PV_DOCUMENT_ROOT', BASE_DIR / 'pv_documents'))
 AMLACS_PV_OFFICIAL_ROOT = PV_DOCUMENT_ROOT / 'official'
 SIGNED_PV_ROOT = PV_DOCUMENT_ROOT / 'signed'
+PV_ARABIC_FONT_PATH = Path(
+    os.environ.get(
+        'PV_ARABIC_FONT_PATH',
+        BASE_DIR / 'document_assets' / 'fonts' / 'NotoNaskhArabic-Regular.ttf',
+    )
+)
 
 
 # PV OTP settings

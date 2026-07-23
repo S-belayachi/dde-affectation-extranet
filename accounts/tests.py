@@ -134,7 +134,7 @@ class OrganismUserManagementTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "same_org_user")
         self.assertNotContains(response, "other_org_user")
-        self.assertNotContains(response, "org_admin")
+        self.assertNotIn(self.org_admin, response.context["managed_users"])
 
     def test_non_admin_organisme_cannot_access_user_management(self):
         self.client.force_login(self.consultation_user)

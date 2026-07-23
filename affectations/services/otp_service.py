@@ -152,7 +152,12 @@ def verify_pv_otp(user, dossier, pv, submitted_code, ip_address="", user_agent="
         otp.used_at = now
         otp.save(update_fields=["attempts", "used_at"])
 
-        pdf_hash = create_signed_pv_pdf(pv, current_user.administration)
+        pdf_hash = create_signed_pv_pdf(
+            pv,
+            current_user.administration,
+            current_user,
+            now,
+        )
 
         pv.is_signed = True
         pv.signed_at = now

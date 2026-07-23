@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n static %}
 {% get_current_language as CURRENT_LANGUAGE %}
 {% get_current_language_bidi as LANGUAGE_BIDI %}
 <!doctype html>
@@ -6,112 +6,67 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
     <title>{% trans "Connexion" %} | Extranet Affectation</title>
-    <style>
-        body {
-            margin: 0;
-            min-height: 100vh;
-            display: grid;
-            place-items: center;
-            font-family: Arial, Tahoma, sans-serif;
-            background: #f3f6f8;
-            color: #17202a;
-        }
-
-        main {
-            width: min(420px, calc(100% - 32px));
-            padding: 28px;
-            background: #fff;
-            border: 1px solid #d8e0e6;
-            border-radius: 8px;
-        }
-
-        h1 {
-            margin: 0 0 8px;
-            font-size: 1.5rem;
-        }
-
-        p {
-            margin: 0 0 24px;
-            color: #5d6d7e;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: 700;
-        }
-
-        input {
-            width: 100%;
-            box-sizing: border-box;
-            margin-bottom: 16px;
-            padding: 10px 12px;
-            border: 1px solid #b8c4cc;
-            border-radius: 6px;
-            font: inherit;
-        }
-
-        button {
-            width: 100%;
-            padding: 11px 14px;
-            border: 0;
-            border-radius: 6px;
-            background: #0f766e;
-            color: #fff;
-            font: inherit;
-            font-weight: 700;
-            cursor: pointer;
-        }
-
-        .error {
-            margin-bottom: 16px;
-            padding: 10px 12px;
-            border-radius: 6px;
-            background: #fdecec;
-            color: #922b21;
-        }
-
-        .language-selector {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 20px;
-        }
-
-        .language-selector select {
-            width: auto;
-            margin: 0;
-            padding: 7px 9px;
-        }
-    </style>
+    <link rel="stylesheet" href="{% static 'accounts/extranet.css' %}">
 </head>
-<body>
-    <main>
-        {% include "includes/language_selector.html" %}
-        <h1>{% trans "Connexion Extranet" %}</h1>
-        <p>{% trans "Acces reserve aux administrations beneficiaires." %}</p>
+<body class="login-body">
+    <header class="login-header">
+        <div class="container login-header__inner">
+            <div class="brand">
+                <span class="brand__logo">
+                    <img
+                        src="{% static 'accounts/images/mef-logo.png' %}"
+                        alt="{% trans "Ministere de l'Economie et des Finances - Royaume du Maroc" %}"
+                    >
+                </span>
+                <span class="brand__copy">
+                    <span class="brand__authority">{% trans "Direction des Domaines de l'Etat" %}</span>
+                    <strong>Extranet Affectation</strong>
+                </span>
+            </div>
+            {% include "includes/language_selector.html" %}
+        </div>
+    </header>
 
-        {% if form.non_field_errors %}
-            <div class="error">{{ form.non_field_errors|join:" " }}</div>
-        {% elif form.errors %}
-            <div class="error">{% trans "Identifiant ou mot de passe incorrect." %}</div>
-        {% endif %}
+    <main class="login-main">
+        <div class="login-shell">
+            <section class="login-context">
+                <p class="login-context__label">{% trans "Espace beneficiaire securise" %}</p>
+                <h1>Extranet Affectation</h1>
+                <p>{% trans "Acces reserve aux administrations beneficiaires." %}</p>
+            </section>
 
-        <form method="post">
-            {% csrf_token %}
-            {% if next %}
-                <input type="hidden" name="next" value="{{ next }}">
-            {% endif %}
+            <section class="login-form-panel">
+                <h2>{% trans "Connexion Extranet" %}</h2>
+                <p>{% trans "Saisissez vos identifiants pour acceder a votre espace." %}</p>
 
-            <label for="{{ form.username.id_for_label }}">{% trans "Identifiant" %}</label>
-            {{ form.username }}
+                {% if form.non_field_errors %}
+                    <div class="login-error" role="alert">{{ form.non_field_errors|join:" " }}</div>
+                {% elif form.errors %}
+                    <div class="login-error" role="alert">{% trans "Identifiant ou mot de passe incorrect." %}</div>
+                {% endif %}
 
-            <label for="{{ form.password.id_for_label }}">{% trans "Mot de passe" %}</label>
-            {{ form.password }}
+                <form class="login-form" method="post">
+                    {% csrf_token %}
+                    {% if next %}
+                        <input type="hidden" name="next" value="{{ next }}">
+                    {% endif %}
 
-            <button type="submit">{% trans "Se connecter" %}</button>
-        </form>
+                    <div class="form-field">
+                        <label for="{{ form.username.id_for_label }}">{% trans "Identifiant" %}</label>
+                        {{ form.username }}
+                    </div>
+
+                    <div class="form-field">
+                        <label for="{{ form.password.id_for_label }}">{% trans "Mot de passe" %}</label>
+                        {{ form.password }}
+                    </div>
+
+                    <button class="button" type="submit">{% trans "Se connecter" %}</button>
+                </form>
+            </section>
+        </div>
     </main>
 </body>
 </html>

@@ -18,9 +18,13 @@ from .models import (
     TableFaitAffectationDatalab,
 )
 from .services.pv_documents import (
+    INTEGRITY_TAMPERED,
+    INTEGRITY_VALID,
     calculate_sha256,
+    electronic_signature_statement,
     get_signed_pdf_path,
     retrieve_official_pv,
+    verify_signed_pv_integrity,
 )
 from .services.pv_rules import PV_READY_STATUSES
 
@@ -426,6 +430,28 @@ class PvAffectationFlowTests(TestCase):
     def test_successful_otp_signature_marks_pv_signed_and_blocks_pdf(self):
         pv, _source_path = retrieve_official_pv(self.ready_dossier, self.education)
         source_hash_before_signature = calculate_sha256(_source_path)
+        source_document = fitz.open(_source_path)
+        source_page_height = source_document[-1].rect.height
+        source_text_position = source_document[-1].search_for(
+            "PV officiel AMLACS"
+        )[0]
+        source_document.close()
+        self.signataire.first_name = "Souhayl"
+        self.signataire.last_name = "Belayachi"
+        self.signataire.prenom_ar = "سهيل"
+        self.signataire.nom_ar = "بلاياشي"
+        self.signataire.fonction = "Responsable habilité"
+        self.signataire.save(
+            update_fields=[
+                "first_name",
+                "last_name",
+                "prenom_ar",
+                "nom_ar",
+                "fonction",
+            ]
+        )
+        self.education.nom_ar = "وزارة التربية الوطنية"
+        self.education.save(update_fields=["nom_ar"])
         OtpCode.objects.create(
             user=self.signataire,
             pv=pv,
@@ -450,14 +476,65 @@ class PvAffectationFlowTests(TestCase):
         self.assertTrue(pv.signed_pdf.startswith("signed"))
         self.assertEqual(calculate_sha256(_source_path), source_hash_before_signature)
         self.assertEqual(SignatureOtpPv.objects.count(), 1)
-        self.assertEqual(SignatureOtpPv.objects.get().user_agent, "Test agent")
+        signature_proof = SignatureOtpPv.objects.get()
+        self.assertEqual(signature_proof.user_agent, "Test agent")
+        self.assertEqual(signature_proof.signed_at, pv.signed_at)
+        self.assertEqual(signature_proof.pdf_hash_sha256, pv.pdf_hash_sha256)
+        self.assertEqual(verify_signed_pv_integrity(pv).status, INTEGRITY_VALID)
         signed_document = fitz.open(get_signed_pdf_path(pv))
-        footer_text = "\n".join(page.get_text() for page in signed_document)
-        signed_document.close()
-        self.assertIn(
-            "Signé électroniquement par Education Nationale",
-            footer_text,
+        signed_page_height = signed_document[-1].rect.height
+        signed_text_position = signed_document[-1].search_for(
+            "PV officiel AMLACS"
+        )[0]
+        footer_text = " ".join(
+            signed_document[-1]
+            .get_text(
+                clip=fitz.Rect(
+                    0,
+                    source_page_height,
+                    signed_document[-1].rect.width,
+                    signed_document[-1].rect.height,
+                )
+            )
+            .split()
         )
+        footer_pixmap = signed_document[-1].get_pixmap(
+            clip=fitz.Rect(
+                36,
+                source_page_height,
+                signed_document[-1].rect.width - 36,
+                signed_document[-1].rect.height,
+            ),
+            alpha=False,
+        )
+        signed_document.close()
+        local_signed_at = timezone.localtime(pv.signed_at)
+        signature_statement = electronic_signature_statement(
+            self.education,
+            self.signataire,
+            pv.signed_at,
+        )
+        self.assertGreater(signed_page_height, source_page_height)
+        self.assertAlmostEqual(signed_text_position.x0, source_text_position.x0)
+        self.assertAlmostEqual(signed_text_position.y0, source_text_position.y0)
+        self.assertEqual(
+            signature_statement,
+            "تم توقيع هذا المحضر إلكترونياً من طرف سهيل بلاياشي، "
+            "نيابةً عن الإدارة المستفيدة وزارة التربية الوطنية، "
+            f"بتاريخ {local_signed_at:%d/%m/%Y}",
+        )
+        self.assertIn(f"{local_signed_at:%d/%m/%Y}", footer_text)
+        footer_samples = footer_pixmap.samples
+        dark_footer_pixels = sum(
+            1
+            for offset in range(0, len(footer_samples), footer_pixmap.n)
+            if min(footer_samples[offset : offset + 3]) < 180
+        )
+        self.assertGreater(dark_footer_pixels, 300)
+        self.assertNotIn("OTP", footer_text)
+        self.assertNotIn("ATTESTATION", footer_text)
+        self.assertNotIn("signataire", footer_text)
+        self.assertNotIn("Responsable", footer_text)
         self.assertEqual(pdf_response.status_code, 403)
 
         self.client.force_login(self.admin_dde)
@@ -466,6 +543,39 @@ class PvAffectationFlowTests(TestCase):
         )
         self.assertEqual(dde_pdf_response.status_code, 200)
         self.assertEqual(dde_pdf_response["Content-Type"], "application/pdf")
+        b"".join(dde_pdf_response.streaming_content)
+
+        signed_path = get_signed_pdf_path(pv)
+        with open(signed_path, "ab") as signed_file:
+            signed_file.write(b"\n% modification non autorisee")
+
+        self.assertEqual(
+            verify_signed_pv_integrity(pv).status,
+            INTEGRITY_TAMPERED,
+        )
+        tampered_pdf_response = self.client.get(
+            reverse("affectations:dde_signed_pv_pdf", args=[pv.id])
+        )
+        self.assertEqual(tampered_pdf_response.status_code, 403)
+
+        admin_changelist_url = reverse(
+            "admin:affectations_pvaffectation_changelist"
+        )
+        admin_response = self.client.get(admin_changelist_url)
+        self.assertContains(admin_response, "Falsifié")
+        self.assertContains(
+            admin_response,
+            "verify_selected_signed_pdf_integrity",
+        )
+        action_response = self.client.post(
+            admin_changelist_url,
+            {
+                "action": "verify_selected_signed_pdf_integrity",
+                "_selected_action": [str(pv.pk)],
+            },
+            follow=True,
+        )
+        self.assertContains(action_response, "falsifiés : 1")
 
         self.client.force_login(self.signataire)
         beneficiary_pdf_response = self.client.get(

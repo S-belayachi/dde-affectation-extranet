@@ -284,3 +284,42 @@ Use the project virtual environment for Django commands:
 - Removed the unused `LIBREOFFICE_PATH` setting and the obsolete `generated_documents/` Git ignore rule.
 - The active PV workflow now exclusively retrieves official AMLACS PDFs from `pv_documents/official/` and creates signed copies in `pv_documents/signed/`.
 - Historical migration and progress entries remain as an audit trail; no active code uses the previous DOCX-generation workflow.
+
+### 2026-07-23
+
+- Rebuilt the Extranet UI around a shared, responsive public-administration design system.
+- Consolidated page structure, navigation, language controls, forms, tables, statuses, messages, empty states, and footer styling into a common layout and stylesheet.
+- Polished login, dashboard, dossier list/detail, PV signing, and beneficiary user-management screens without changing permissions or business workflows.
+- Extended Arabic translations for all new interface labels and verified right-to-left behavior.
+- Verified desktop and mobile layouts at 1440px and 390px with no page-level horizontal overflow.
+- Validation passed: 31 tests, `manage.py check`, static asset discovery, and migration consistency check.
+- Integrated the supplied bilingual Ministry of Economy and Finance logo into the shared Extranet header and login screen.
+- Adapted the interface palette to the logo's institutional navy and turquoise while preserving the restrained public-administration layout.
+- Added localized accessible logo text and verified the image at desktop and mobile sizes without distortion or horizontal overflow.
+- Refined the ministry/product header lockup with a centered turquoise divider so the Extranet identity aligns clearly beside the logo.
+- Strengthened the visual hierarchy across headings, supporting text, navigation, buttons, forms, tables, and service links using distinct institutional and neutral colors.
+- Validation passed: 12 account/UI tests, 19 affectations/PV tests, `manage.py check`, and authenticated desktop visual review.
+- Rebalanced the interface palette by moving page, section, form, and table headings to charcoal and reserving ministry blue for branding, links, active navigation, and primary actions.
+- Replaced the minimal signed-PV footer with a professional electronic-signature attestation containing the signer name, account identifier, optional function, beneficiary administration, Morocco-local date and time, OTP method, and reproducible signature reference.
+- The attestation is placed in newly appended space below the official AMLACS page, preserving the source document's content and coordinates without overlap.
+- Validation passed: 19 affectations/PV tests, `manage.py check`, migration consistency check, extracted-text assertions, and visual PDF review.
+- Added five fresh `Signé par DR` signature-test dossiers to the unmanaged AMLACS source table: three for Education Nationale and two for Enseignement Supérieur Et De La Recherche Scientifique.
+- Added matching private official test PDFs (`12.pdf` through `16.pdf`) under `pv_documents/official/`.
+- Confirmed `signataire_education` and `signataire_pv_test` are active signataires with signing permission and both deliver OTP codes to `belayachisouhayl1@gmail.com`.
+- Added live signed-PDF integrity verification against both SHA-256 values stored on `PvAffectation` and `SignatureOtpPv`.
+- Added a DDE-admin integrity column with `Valide`, `Falsifié`, `Fichier manquant`, `Non vérifiable`, and `Non signé` states, plus a view-permitted bulk verification action.
+- Altered or unverifiable signed PDFs no longer expose a viewing link in Django Admin, and the protected DDE document view blocks access when integrity fails.
+- Validation passed: all 19 affectations/PV tests, including sign, verify, tamper, admin detection, bulk verification, and access blocking. No migration was required.
+- Current integrity audit: recent signed PV records `4` and `5` are valid; historical signed records `1`, `2`, and `3` have no signed file in private storage and are reported as `Fichier manquant`.
+- Replaced the verbose French signed-PV attestation with a concise Arabic footer containing only the signataire's first and last name, beneficiary administration, and Morocco-local signature date.
+- The footer prefers the Arabic user and administration fields and falls back to their existing names when Arabic data is not yet populated.
+- Bundled Noto Naskh Arabic under `document_assets/fonts/` so connected right-to-left Arabic text renders consistently in signed PDFs.
+- Validation passed: all 19 affectations/PV tests, `manage.py check`, migration consistency check, and visual PDF review with a long Arabic administration name. No migration was required.
+- Diagnosed two manual signatures produced by a stale port `8000` process that still held the removed French footer implementation in memory.
+- Reset only the disposable `TEST-OTP-*` PV, OTP, and signature-proof records for source dossiers `12` through `16`; their imported source rows and official AMLACS PDFs remain untouched and ready for retesting.
+- Cleared project bytecode caches and restarted port `8000` with an isolated empty cache, forcing the Arabic-only footer implementation to load directly from source.
+- Revalidation passed: all 19 affectations/PV tests, `manage.py check`, and migration consistency check.
+- Found and terminated twelve overlapping Django `runserver` processes, including the original pre-Arabic worker that continued serving OTP signature requests from memory.
+- Reset the affected disposable test signature and removed every remaining French-stamped test PDF from private signed storage.
+- Started one clean `127.0.0.1:8000 --noreload` server and verified it through a real HTTP OTP-signature request: footer height `84`, no legacy French markers, and visually correct Arabic rendering.
+- Reset test dossier `14` again for manual signing: removed its OTP, signature proof, signed-PV metadata, and signed copy while preserving the `Signé par DR` source row and official AMLACS PDF.

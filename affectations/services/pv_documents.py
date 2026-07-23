@@ -1,17 +1,38 @@
 import hashlib
 import re
 import tempfile
+from dataclasses import dataclass
+from html import escape
 from pathlib import Path
 
 import fitz
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 
 from affectations.models import PvAffectation
 from affectations.services.pv_rules import build_pv_key
 
 
-ELECTRONIC_SIGNATURE_PREFIX = "Signé électroniquement par "
+ELECTRONIC_SIGNATURE_FOOTER_HEIGHT = 84
+INTEGRITY_VALID = "valid"
+INTEGRITY_TAMPERED = "tampered"
+INTEGRITY_MISSING = "missing"
+INTEGRITY_UNVERIFIABLE = "unverifiable"
+INTEGRITY_NOT_SIGNED = "not_signed"
+
+
+@dataclass(frozen=True)
+class SignedPvIntegrityResult:
+    status: str
+    current_hash: str = ""
+    pv_hash: str = ""
+    proof_hash: str = ""
+    path: Path | None = None
+
+    @property
+    def is_valid(self):
+        return self.status == INTEGRITY_VALID
 
 
 class OfficialPvError(Exception):
@@ -127,8 +148,36 @@ def retrieve_official_pv(dossier, administration):
     return pv, source_path
 
 
-def electronic_signature_statement(administration):
-    return f"{ELECTRONIC_SIGNATURE_PREFIX}{administration.nom}"
+def single_line_text(value):
+    return " ".join(str(value or "").split())
+
+
+def electronic_signature_statement(administration, signer, signed_at):
+    signer_name_ar = " ".join(
+        part
+        for part in (
+            single_line_text(getattr(signer, "prenom_ar", "")),
+            single_line_text(getattr(signer, "nom_ar", "")),
+        )
+        if part
+    )
+    signer_name = signer_name_ar or single_line_text(signer.get_full_name())
+    if not signer_name:
+        raise OfficialPvError(
+            "Le nom et le prenom du signataire doivent etre renseignes."
+        )
+
+    administration_name = (
+        single_line_text(administration.nom_ar)
+        or single_line_text(administration.nom)
+    )
+    local_signed_at = timezone.localtime(signed_at)
+
+    return (
+        f"تم توقيع هذا المحضر إلكترونياً من طرف {signer_name}، "
+        f"نيابةً عن الإدارة المستفيدة {administration_name}، "
+        f"بتاريخ {local_signed_at:%d/%m/%Y}"
+    )
 
 
 def absolute_signed_path(relative_path):
@@ -147,7 +196,7 @@ def signed_relative_path(pv):
     return str(relative_directory / f"{pv.pv_key}.pdf")
 
 
-def create_signed_pv_pdf(pv, administration):
+def create_signed_pv_pdf(pv, administration, signer, signed_at):
     if not pv.source_filename or not pv.source_pdf_hash_sha256:
         raise OfficialPvError("Le PV officiel doit etre recupere avant signature.")
 
@@ -171,19 +220,72 @@ def create_signed_pv_pdf(pv, administration):
             raise OfficialPvError("Le PDF officiel est vide.")
 
         page = document[document.page_count - 1]
-        footer = fitz.Rect(
-            page.rect.x0 + 36,
-            page.rect.y1 - 30,
-            page.rect.x1 - 36,
-            page.rect.y1 - 10,
+        original_page_height = page.rect.height
+        media_box = page.mediabox
+        page.set_mediabox(
+            fitz.Rect(
+                media_box.x0,
+                media_box.y0 - ELECTRONIC_SIGNATURE_FOOTER_HEIGHT,
+                media_box.x1,
+                media_box.y1,
+            )
         )
-        remaining_height = page.insert_textbox(
+        page_rect = page.rect
+        separator_y = original_page_height + 8
+        page.draw_line(
+            fitz.Point(page_rect.x0 + 36, separator_y),
+            fitz.Point(page_rect.x1 - 36, separator_y),
+            color=(0.65, 0.7, 0.74),
+            width=0.6,
+            overlay=True,
+        )
+        footer = fitz.Rect(
+            page_rect.x0 + 36,
+            separator_y + 8,
+            page_rect.x1 - 36,
+            page_rect.y1 - 8,
+        )
+        arabic_font_path = Path(settings.PV_ARABIC_FONT_PATH).resolve()
+        if not arabic_font_path.is_file():
+            raise OfficialPvError(
+                "La police arabe du pied de page est introuvable."
+            )
+        font_archive = fitz.Archive(arabic_font_path.parent)
+        signature_date = timezone.localtime(signed_at).strftime("%d/%m/%Y")
+        signature_statement = escape(
+            electronic_signature_statement(administration, signer, signed_at)
+        ).replace(
+            escape(signature_date),
+            f'<span class="signature-date" dir="ltr">{signature_date}</span>',
+            1,
+        )
+        html = (
+            '<div class="signature" dir="rtl" lang="ar">'
+            f"{signature_statement}</div>"
+        )
+        css = f"""
+            @font-face {{
+                font-family: PvArabic;
+                src: url({arabic_font_path.name});
+            }}
+            .signature {{
+                font-family: PvArabic;
+                font-size: 10pt;
+                line-height: 1.5;
+                text-align: center;
+                color: #1f2933;
+            }}
+            .signature-date {{
+                direction: ltr;
+                white-space: nowrap;
+            }}
+        """
+        remaining_height, _scale = page.insert_htmlbox(
             footer,
-            electronic_signature_statement(administration),
-            fontname="helv",
-            fontsize=8,
-            align=fitz.TEXT_ALIGN_CENTER,
-            color=(0, 0, 0),
+            html,
+            css=css,
+            archive=font_archive,
+            scale_low=1,
             overlay=True,
         )
         if remaining_height < 0:
@@ -217,3 +319,50 @@ def get_signed_pdf_path(pv):
     if not path.is_file():
         raise OfficialPvNotFoundError("Le PDF signe est introuvable.")
     return path
+
+
+def verify_signed_pv_integrity(pv):
+    pv_hash = (pv.pdf_hash_sha256 or "").strip().lower()
+
+    try:
+        proof_hash = (pv.signature_proof.pdf_hash_sha256 or "").strip().lower()
+    except ObjectDoesNotExist:
+        proof_hash = ""
+
+    if not pv.is_signed:
+        return SignedPvIntegrityResult(
+            status=INTEGRITY_NOT_SIGNED,
+            pv_hash=pv_hash,
+            proof_hash=proof_hash,
+        )
+
+    try:
+        path = get_signed_pdf_path(pv)
+    except OfficialPvError:
+        return SignedPvIntegrityResult(
+            status=INTEGRITY_MISSING,
+            pv_hash=pv_hash,
+            proof_hash=proof_hash,
+        )
+
+    if not pv_hash or not proof_hash:
+        return SignedPvIntegrityResult(
+            status=INTEGRITY_UNVERIFIABLE,
+            pv_hash=pv_hash,
+            proof_hash=proof_hash,
+            path=path,
+        )
+
+    current_hash = calculate_sha256(path).lower()
+    status = (
+        INTEGRITY_VALID
+        if current_hash == pv_hash == proof_hash
+        else INTEGRITY_TAMPERED
+    )
+    return SignedPvIntegrityResult(
+        status=status,
+        current_hash=current_hash,
+        pv_hash=pv_hash,
+        proof_hash=proof_hash,
+        path=path,
+    )

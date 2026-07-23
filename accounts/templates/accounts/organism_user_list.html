@@ -1,200 +1,87 @@
+{% extends "base.html" %}
 {% load i18n %}
-{% get_current_language as CURRENT_LANGUAGE %}
-{% get_current_language_bidi as LANGUAGE_BIDI %}
-<!doctype html>
-<html lang="{{ CURRENT_LANGUAGE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% trans "Utilisateurs" %} | Extranet Affectation</title>
-    <style>
-        body {
-            margin: 0;
-            font-family: Arial, Tahoma, sans-serif;
-            background: #f3f6f8;
-            color: #17202a;
-        }
 
-        header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            padding: 16px 24px;
-            background: #fff;
-            border-bottom: 1px solid #d8e0e6;
-        }
+{% block title %}{% trans "Utilisateurs" %} | Extranet Affectation{% endblock %}
 
-        nav {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        a {
-            color: #0f766e;
-            text-decoration: none;
-            font-weight: 700;
-        }
-
-        h1 {
-            margin: 0;
-            font-size: 1.25rem;
-        }
-
-        main {
-            width: min(1100px, calc(100% - 32px));
-            margin: 32px auto;
-        }
-
-        .summary,
-        .empty {
-            margin-bottom: 18px;
-            padding: 20px;
-            background: #fff;
-            border: 1px solid #d8e0e6;
-            border-radius: 8px;
-        }
-
-        .summary h2 {
-            margin: 0 0 8px;
-            font-size: 1.15rem;
-        }
-
-        .summary p {
-            margin: 0 0 18px;
-            color: #5d6d7e;
-        }
-
-        .primary {
-            display: inline-block;
-            padding: 10px 14px;
-            border-radius: 6px;
-            background: #0f766e;
-            color: #fff;
-            text-decoration: none;
-        }
-
-        .table-wrap {
-            overflow-x: auto;
-            background: #fff;
-            border: 1px solid #d8e0e6;
-            border-radius: 8px;
-        }
-
-        table {
-            width: 100%;
-            min-width: 860px;
-            border-collapse: collapse;
-        }
-
-        th,
-        td {
-            padding: 12px 14px;
-            border-bottom: 1px solid #e5ebef;
-            text-align: start;
-            vertical-align: top;
-        }
-
-        th {
-            background: #eef4f3;
-            color: #34495e;
-            font-size: 0.88rem;
-        }
-
-        tr:last-child td {
-            border-bottom: 0;
-        }
-
-        button {
-            padding: 9px 12px;
-            border: 1px solid #b8c4cc;
-            border-radius: 6px;
-            background: #fff;
-            font: inherit;
-            cursor: pointer;
-        }
-
-        .language-selector {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .language-selector label {
-            font-weight: 700;
-        }
-
-        .language-selector select {
-            padding: 7px 9px;
-        }
-    </style>
-</head>
-<body>
-    <header>
-        <h1>Extranet Affectation</h1>
-        <nav>
-            <a href="{% url 'accounts:dashboard' %}">{% trans "Tableau de bord" %}</a>
-            <a href="{% url 'affectations:dossier_list' %}">{% trans "Dossiers" %}</a>
-            {% include "includes/language_selector.html" %}
-            <form method="post" action="{% url 'accounts:logout' %}">
-                {% csrf_token %}
-                <button type="submit">{% trans "Se deconnecter" %}</button>
-            </form>
-        </nav>
+{% block content %}
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <p class="eyebrow">{% trans "Gestion des acces" %}</p>
+            <h1>{% trans "Utilisateurs de mon organisme" %}</h1>
+            <p>{{ administration.nom }}</p>
+        </div>
+        <div class="page-actions">
+            <a class="button" href="{% url 'accounts:organism_user_create' %}">
+                {% trans "Ajouter un utilisateur" %}
+            </a>
+        </div>
     </header>
 
-    <main>
-        <section class="summary">
-            <h2>{% trans "Utilisateurs de mon organisme" %}</h2>
-            <p>{{ administration.nom }}</p>
-            <a class="primary" href="{% url 'accounts:organism_user_create' %}">{% trans "Ajouter un utilisateur" %}</a>
-        </section>
-
-        {% if managed_users %}
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>{% trans "Identifiant" %}</th>
-                            <th>{% trans "Nom complet" %}</th>
-                            <th>Email</th>
-                            <th>{% trans "Role" %}</th>
-                            <th>{% trans "Peut signer" %}</th>
-                            <th>{% trans "Actif" %}</th>
-                            <th>{% trans "Action" %}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for managed_user in managed_users %}
+    {% if managed_users %}
+        <section class="panel" aria-labelledby="users-title">
+            <div class="panel__header">
+                <h2 id="users-title">{% trans "Comptes utilisateurs" %}</h2>
+                <p>{{ managed_users|length }} {% trans "utilisateurs enregistres" %}</p>
+            </div>
+            <div class="panel__body panel__body--flush">
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
                             <tr>
-                                <td>{{ managed_user.username }}</td>
-                                <td>{{ managed_user.get_full_name|default:"-" }}</td>
-                                <td>{{ managed_user.email|default:"-" }}</td>
-                                <td>
-                                    {% if managed_user.role == "consultation" %}
-                                        {% trans "Consultation uniquement" %}
-                                    {% elif managed_user.role == "signataire" %}
-                                        {% trans "Signataire" %}
-                                    {% else %}
-                                        {% trans "Administrateur organisme" %}
-                                    {% endif %}
-                                </td>
-                                <td>{% if managed_user.peut_signer %}{% trans "Oui" %}{% else %}{% trans "Non" %}{% endif %}</td>
-                                <td>{% if managed_user.is_active %}{% trans "Oui" %}{% else %}{% trans "Non" %}{% endif %}</td>
-                                <td>
-                                    <a href="{% url 'accounts:organism_user_update' managed_user.id %}">{% trans "Modifier" %}</a>
-                                </td>
+                                <th scope="col">{% trans "Identifiant" %}</th>
+                                <th scope="col">{% trans "Nom complet" %}</th>
+                                <th scope="col">{% trans "Email" %}</th>
+                                <th scope="col">{% trans "Role" %}</th>
+                                <th scope="col">{% trans "Peut signer" %}</th>
+                                <th scope="col">{% trans "Statut" %}</th>
+                                <th scope="col">{% trans "Action" %}</th>
                             </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {% for managed_user in managed_users %}
+                                <tr>
+                                    <td class="cell-primary">{{ managed_user.username }}</td>
+                                    <td>{{ managed_user.get_full_name|default:"-" }}</td>
+                                    <td>{{ managed_user.email|default:"-" }}</td>
+                                    <td>
+                                        {% if managed_user.role == "consultation" %}
+                                            {% trans "Consultation uniquement" %}
+                                        {% elif managed_user.role == "signataire" %}
+                                            {% trans "Signataire" %}
+                                        {% else %}
+                                            {% trans "Administrateur organisme" %}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if managed_user.peut_signer %}
+                                            <span class="badge badge--success">{% trans "Oui" %}</span>
+                                        {% else %}
+                                            <span class="badge">{% trans "Non" %}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if managed_user.is_active %}
+                                            <span class="badge badge--success">{% trans "Actif" %}</span>
+                                        {% else %}
+                                            <span class="badge">{% trans "Inactif" %}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'accounts:organism_user_update' managed_user.id %}">
+                                            {% trans "Modifier" %}
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
-        {% else %}
-            <div class="empty">
-                {% trans "Aucun utilisateur a gerer pour le moment." %}
-            </div>
-        {% endif %}
-    </main>
-</body>
-</html>
+        </section>
+    {% else %}
+        <section class="empty-state">
+            <h2>{% trans "Aucun utilisateur" %}</h2>
+            <p>{% trans "Aucun utilisateur a gerer pour le moment." %}</p>
+        </section>
+    {% endif %}
+{% endblock %}

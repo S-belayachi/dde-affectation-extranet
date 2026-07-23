@@ -1,5 +1,6 @@
 ﻿from django.contrib import admin
 
+from django.contrib import messages
 from django.urls import reverse
 from django.utils.html import format_html
 
@@ -9,6 +10,14 @@ from .models import (
     OtpCode,
     PvAffectation,
     SignatureOtpPv,
+)
+from .services.pv_documents import (
+    INTEGRITY_MISSING,
+    INTEGRITY_NOT_SIGNED,
+    INTEGRITY_TAMPERED,
+    INTEGRITY_UNVERIFIABLE,
+    INTEGRITY_VALID,
+    verify_signed_pv_integrity,
 )
 
 
@@ -182,6 +191,7 @@ class PvAffectationAdmin(admin.ModelAdmin):
         "source_filename",
         "source_retrieved_at",
         "signed_at",
+        "integrity_status",
         "signed_pdf_link",
     )
     search_fields = (
@@ -191,15 +201,101 @@ class PvAffectationAdmin(admin.ModelAdmin):
         "pv_key",
     )
     list_filter = ("is_signed", "administration")
-    readonly_fields = [field.name for field in PvAffectation._meta.fields]
+    readonly_fields = [
+        *[field.name for field in PvAffectation._meta.fields],
+        "integrity_details",
+        "signed_pdf_link",
+    ]
+    list_select_related = ("administration", "signature_proof")
+    actions = ("verify_selected_signed_pdf_integrity",)
+
+    integrity_labels = {
+        INTEGRITY_VALID: ("Valide", "#176757", "#e9f5f1"),
+        INTEGRITY_TAMPERED: ("Falsifié", "#a32828", "#fceeee"),
+        INTEGRITY_MISSING: ("Fichier manquant", "#a32828", "#fceeee"),
+        INTEGRITY_UNVERIFIABLE: ("Non vérifiable", "#875d13", "#fff7df"),
+        INTEGRITY_NOT_SIGNED: ("Non signé", "#596773", "#eef2f4"),
+    }
+
+    def get_integrity_result(self, obj):
+        if not hasattr(obj, "_signed_pdf_integrity_result"):
+            obj._signed_pdf_integrity_result = verify_signed_pv_integrity(obj)
+        return obj._signed_pdf_integrity_result
+
+    def integrity_label(self, result):
+        return self.integrity_labels[result.status][0]
+
+    @admin.display(description="Intégrité du PDF")
+    def integrity_status(self, obj):
+        result = self.get_integrity_result(obj)
+        label, foreground, background = self.integrity_labels[result.status]
+        return format_html(
+            '<strong style="display:inline-block;padding:3px 8px;'
+            'border-radius:4px;color:{};background:{}">{}</strong>',
+            foreground,
+            background,
+            label,
+        )
+
+    @admin.display(description="Contrôle d'intégrité")
+    def integrity_details(self, obj):
+        result = self.get_integrity_result(obj)
+        return format_html(
+            "<strong>{}</strong><br>"
+            "SHA-256 actuel : <code>{}</code><br>"
+            "SHA-256 du PV : <code>{}</code><br>"
+            "SHA-256 de la preuve OTP : <code>{}</code>",
+            self.integrity_label(result),
+            result.current_hash or "-",
+            result.pv_hash or "-",
+            result.proof_hash or "-",
+        )
 
     @admin.display(description="PDF signe")
     def signed_pdf_link(self, obj):
         if not obj.is_signed or not obj.signed_pdf:
             return "-"
 
+        result = self.get_integrity_result(obj)
+        if not result.is_valid:
+            return format_html(
+                '<strong style="color:#a32828">Accès bloqué ({})</strong>',
+                self.integrity_label(result),
+            )
+
         url = reverse("affectations:dde_signed_pv_pdf", args=[obj.pk])
         return format_html('<a href="{}" target="_blank">Voir le PDF signe</a>', url)
+
+    @admin.action(
+        permissions=["view"],
+        description="Vérifier l'intégrité des PDF signés sélectionnés",
+    )
+    def verify_selected_signed_pdf_integrity(self, request, queryset):
+        counts = {
+            INTEGRITY_VALID: 0,
+            INTEGRITY_TAMPERED: 0,
+            INTEGRITY_MISSING: 0,
+            INTEGRITY_UNVERIFIABLE: 0,
+            INTEGRITY_NOT_SIGNED: 0,
+        }
+        for pv in queryset.select_related("signature_proof"):
+            counts[verify_signed_pv_integrity(pv).status] += 1
+
+        summary = (
+            f"Valides : {counts[INTEGRITY_VALID]} ; "
+            f"falsifiés : {counts[INTEGRITY_TAMPERED]} ; "
+            f"fichiers manquants : {counts[INTEGRITY_MISSING]} ; "
+            f"non vérifiables : {counts[INTEGRITY_UNVERIFIABLE]} ; "
+            f"non signés : {counts[INTEGRITY_NOT_SIGNED]}."
+        )
+        level = (
+            messages.ERROR
+            if counts[INTEGRITY_TAMPERED] or counts[INTEGRITY_MISSING]
+            else messages.WARNING
+            if counts[INTEGRITY_UNVERIFIABLE]
+            else messages.SUCCESS
+        )
+        self.message_user(request, f"Contrôle terminé. {summary}", level=level)
 
     def has_add_permission(self, request):
         return False

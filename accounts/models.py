@@ -1,7 +1,8 @@
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.db import models
 
-from affectations.models import AdministrationBeneficiaire
+from affectations.models import AdministrationBeneficiaire, Delegation
 
 
 class CustomUser(AbstractUser):
@@ -9,12 +10,14 @@ class CustomUser(AbstractUser):
     ROLE_SIGNATAIRE = "signataire"
     ROLE_ADMIN_ORGANISME = "admin_organisme"
     ROLE_ADMIN_DDE = "admin_dde"
+    ROLE_SIGNATAIRE_DELEGATION = "signataire_delegation"
 
     ROLE_CHOICES = [
         (ROLE_CONSULTATION, "Consultation uniquement"),
         (ROLE_SIGNATAIRE, "Signataire"),
         (ROLE_ADMIN_ORGANISME, "Administrateur organisme"),
         (ROLE_ADMIN_DDE, "Administrateur DDE"),
+        (ROLE_SIGNATAIRE_DELEGATION, "Signataire délégation"),
     ]
 
     nom_ar = models.CharField("Nom en arabe", max_length=150, blank=True, null=True)
@@ -22,6 +25,14 @@ class CustomUser(AbstractUser):
 
     administration = models.ForeignKey(
         AdministrationBeneficiaire,
+        on_delete=models.PROTECT,
+        related_name="utilisateurs",
+        blank=True,
+        null=True,
+    )
+
+    delegation = models.ForeignKey(
+        Delegation,
         on_delete=models.PROTECT,
         related_name="utilisateurs",
         blank=True,
@@ -44,6 +55,22 @@ class CustomUser(AbstractUser):
     class Meta:
         verbose_name = "Utilisateur"
         verbose_name_plural = "Utilisateurs"
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        role="signataire_delegation",
+                        delegation__isnull=False,
+                        administration__isnull=True,
+                    )
+                    | (
+                        ~models.Q(role="signataire_delegation")
+                        & models.Q(delegation__isnull=True)
+                    )
+                ),
+                name="accounts_user_scope_matches_role",
+            ),
+        ]
 
     def __str__(self):
         full_name = self.get_full_name()
@@ -51,6 +78,30 @@ class CustomUser(AbstractUser):
 
     def has_role(self, *roles):
         return self.role in roles
+
+    def clean(self):
+        super().clean()
+        if self.is_delegation_signer:
+            errors = {}
+            if not self.delegation_id:
+                errors["delegation"] = (
+                    "Une délégation est obligatoire pour ce rôle."
+                )
+            if self.administration_id:
+                errors["administration"] = (
+                    "Un signataire de délégation ne peut pas être rattaché "
+                    "à une administration bénéficiaire."
+                )
+            if errors:
+                raise ValidationError(errors)
+        elif self.delegation_id:
+            raise ValidationError(
+                {
+                    "delegation": (
+                        "Ce champ est réservé au rôle signataire délégation."
+                    )
+                }
+            )
 
     @property
     def is_consultation_user(self):
@@ -67,6 +118,10 @@ class CustomUser(AbstractUser):
     @property
     def is_admin_dde(self):
         return self.has_role(self.ROLE_ADMIN_DDE)
+
+    @property
+    def is_delegation_signer(self):
+        return self.has_role(self.ROLE_SIGNATAIRE_DELEGATION)
 
     @property
     def can_consult_dossiers(self):
@@ -88,12 +143,30 @@ class CustomUser(AbstractUser):
         )
 
     @property
+    def can_sign_pv_dr(self):
+        return bool(
+            self.delegation_id
+            and self.is_delegation_signer
+            and self.peut_signer
+        )
+
+    @property
+    def can_consult_dr_dossiers(self):
+        return bool(self.delegation_id and self.is_delegation_signer)
+
+    @property
+    def otp_email(self):
+        if self.is_delegation_signer and self.delegation_id:
+            return (self.delegation.email or "").strip()
+        return (self.email or "").strip()
+
+    @property
     def can_manage_organism_users(self):
         return bool(self.administration_id and self.is_admin_organisme)
 
     @property
     def can_access_extranet(self):
-        return bool(
+        beneficiary_access = (
             self.administration_id
             and self.has_role(
                 self.ROLE_CONSULTATION,
@@ -101,3 +174,5 @@ class CustomUser(AbstractUser):
                 self.ROLE_ADMIN_ORGANISME,
             )
         )
+        delegation_access = self.delegation_id and self.is_delegation_signer
+        return bool(beneficiary_access or delegation_access)

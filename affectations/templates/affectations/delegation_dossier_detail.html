@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Dossier" %} {{ dossier.num_dossier }} | Extranet Affectation{% endblock %}
+
+{% block content %}
+    <nav class="breadcrumb" aria-label="{% trans 'Fil d Ariane' %}">
+        <a href="{% url 'affectations:delegation_dossier_list' %}">{% trans "Dossiers" %}</a>
+        <span aria-hidden="true"> / </span>
+        <span>{{ dossier.num_dossier|default:"-" }}</span>
+    </nav>
+
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <p class="eyebrow">{% trans "Delegation" %}</p>
+            <h1>{{ dossier.num_dossier|default:"-" }}</h1>
+            <p>{{ dossier.denomination_projet|default:"-" }}</p>
+        </div>
+        <span class="badge badge--success">
+            {% if pv and pv.is_signed_by_dr %}
+                {% trans "Signe" %}
+            {% else %}
+                {{ dossier.statut_pv|default:"-" }}
+            {% endif %}
+        </span>
+    </header>
+
+    <section class="panel" aria-labelledby="dr-dossier-title">
+        <div class="panel__header">
+            <h2 id="dr-dossier-title">{% trans "Informations du dossier" %}</h2>
+        </div>
+        <div class="panel__body">
+            <dl class="definition-grid">
+                <dt>{% trans "Numero dossier" %}</dt>
+                <dd>{{ dossier.num_dossier|default:"-" }}</dd>
+                <dt>{% trans "Projet" %}</dt>
+                <dd>{{ dossier.denomination_projet|default:"-" }}</dd>
+                <dt>{% trans "Administration" %}</dt>
+                <dd>{{ dossier.administration_beneficiaire|default:"-" }}</dd>
+                <dt>{% trans "Numero PV" %}</dt>
+                <dd>{{ dossier.numero_pv|default:"-" }}</dd>
+                <dt>{% trans "Statut PV" %}</dt>
+                <dd>
+                    {% if pv and pv.is_signed_by_dr %}
+                        {% trans "Signe" %}
+                    {% else %}
+                        {{ dossier.statut_pv|default:"-" }}
+                    {% endif %}
+                </dd>
+            </dl>
+        </div>
+    </section>
+
+    <section class="panel signature-panel" aria-labelledby="dr-signature-title">
+        <div class="panel__header">
+            <h2 id="dr-signature-title">{% trans "Signature du PV" %}</h2>
+            <p>{% trans "Signature electronique securisee par code OTP." %}</p>
+        </div>
+        <div class="panel__body">
+            {% if can_sign_pv_dr and official_pv_available %}
+                <div class="signature-actions">
+                    <a
+                        class="button button--secondary"
+                        href="{% url 'affectations:delegation_pv_pdf' dossier.import_id %}"
+                        target="_blank"
+                        rel="noopener"
+                    >
+                        {% trans "Consulter le PV" %}
+                    </a>
+                    <form method="post" action="{% url 'affectations:delegation_pv_otp_request' dossier.import_id %}">
+                        {% csrf_token %}
+                        <button class="button" type="submit">{% trans "Demander OTP" %}</button>
+                    </form>
+                </div>
+
+                <form class="otp-form" method="post" action="{% url 'affectations:delegation_pv_otp_verify' dossier.import_id %}">
+                    {% csrf_token %}
+                    <label for="dr-otp-code">{% trans "Code OTP" %}</label>
+                    <input
+                        class="otp-input"
+                        id="dr-otp-code"
+                        type="text"
+                        name="otp_code"
+                        inputmode="numeric"
+                        autocomplete="one-time-code"
+                        pattern="[0-9]{6}"
+                        maxlength="6"
+                        placeholder="000000"
+                        required
+                    >
+                    <button class="button" type="submit">{% trans "Signer par OTP" %}</button>
+                </form>
+            {% elif can_sign_pv_dr %}
+                <div class="status-banner">
+                    <strong>{% trans "PV officiel indisponible" %}</strong>
+                    <p>
+                        {% trans "Le document AMLACS n'a pas encore ete depose dans le repertoire prive." %}
+                    </p>
+                    <p>
+                        {% blocktrans with filename=expected_official_filename %}Fichier attendu : {{ filename }}{% endblocktrans %}
+                    </p>
+                </div>
+            {% elif pv and pv.is_signed_by_dr %}
+                <div class="status-banner status-banner--success">
+                    {% blocktrans with signed_at=pv.signed_by_dr_at|date:"d/m/Y H:i" %}PV signe le {{ signed_at }}{% endblocktrans %}
+                </div>
+            {% else %}
+                <div class="status-banner">
+                    {% trans "Le PV n'est pas disponible pour signature a cette etape." %}
+                </div>
+            {% endif %}
+        </div>
+    </section>
+{% endblock %}

@@ -322,4 +322,89 @@ Use the project virtual environment for Django commands:
 - Found and terminated twelve overlapping Django `runserver` processes, including the original pre-Arabic worker that continued serving OTP signature requests from memory.
 - Reset the affected disposable test signature and removed every remaining French-stamped test PDF from private signed storage.
 - Started one clean `127.0.0.1:8000 --noreload` server and verified it through a real HTTP OTP-signature request: footer height `84`, no legacy French markers, and visually correct Arabic rendering.
+
+### 2026-07-24
+
+- Kept OTP verification and the concise Arabic signature footer as the beneficiary-signing workflow.
+- Added an invisible PAdES-B-B cryptographic signature to each newly signed PDF using `pyHanko`; no visible `DDE Extranet Test` label or signature box is added.
+- Added a development-only in-memory self-signed certificate whose subject contains the signataire's real first and last name and beneficiary administration.
+- Added persistent PAdES audit metadata to `SignatureOtpPv`: profile, PDF signature field, certificate subject, serial number, and SHA-256 fingerprint.
+- Strengthened DDE Admin integrity verification to require the stored PDF hashes, expected certificate fingerprint, intact PAdES signature, full-file coverage, and no later PDF modification.
+- Required real first and last names when an organism administrator creates or updates a signataire.
+- Added and applied migration `affectations.0006_signatureotppv_pades_certificate_fingerprint_sha256_and_more`; only the managed signature-proof table changed.
+- Confirmed a real incremental content edit invalidates PAdES and is blocked by the protected DDE signed-document view.
+- Validation passed: all 32 account/PV tests, `manage.py check`, migration consistency check, PAdES metadata inspection, and visual PDF review.
+- Existing signed PDFs were not re-signed automatically; records without PAdES proof are intentionally reported as non-verifiable.
+- Extended the Arabic signed-PV footer with the Morocco-local signature time using `على الساعة HH:MM:SS`.
+- Reinitialized testable PV records `11` and `13` for signature retesting: removed their OTP rows, signature proofs, signed metadata, signed PDFs, backup, and tampered copy while preserving official AMLACS sources `14.pdf` and `13.pdf`.
+- Added the managed `Delegation` table with unique `code`, unique `nom`, and required `adresse`.
+- Added the exclusive `signataire_delegation` account role and nullable `CustomUser.delegation` relationship; database and model validation prevent mixing delegation authority with a beneficiary administration.
+- Added `can_sign_pv_dr` while preserving beneficiary `can_sign_pv` and internal `admin_dde` supervision as separate capabilities.
+- Delegation accounts can authenticate and see a delegation-aware bilingual dashboard, but beneficiary dossier and OTP routes remain hidden and return `403` until the DR-specific workflow is implemented.
+- Registered delegations and delegation account fields in Django Admin.
+- Added and applied migrations `affectations.0007_delegation` and `accounts.0002_customuser_delegation_alter_customuser_role_and_more`; the unmanaged AMLACS source table was not altered.
+- Validation passed: all 34 account/PV tests, `manage.py check`, and migration consistency check.
+- Added required `Delegation.email` and exposed it in delegation search/list management in Django Admin.
+- Added role-aware `CustomUser.otp_email`: beneficiary signers use their account email, while delegation signers use the institutional delegation email.
+- Added and applied migration `affectations.0008_delegation_email`.
+- Revalidated delegation and beneficiary OTP routing; all 34 account/PV tests, `manage.py check`, and migration consistency check pass.
+- Created four delegation test records from real non-test values in the unmanaged AMLACS source table: `Agadir`, `Rabat`, `Essaouira`, and `Casablanca`.
+- Created active `signataire_delegation` test accounts `delegation_agadir`, `delegation_rabat`, `delegation_essaouira`, and `delegation_casablanca`; all use the configured test mailbox for OTP and pass authentication/capability checks.
+- Generated stable test codes `DEL-AGADIR`, `DEL-RABAT`, `DEL-ESSAOUIRA`, and `DEL-CASABLANCA`; addresses are explicitly marked for later completion because the imported source table has no delegation address field.
+- Added a dedicated delegation dossier section at `/delegation/dossiers/`, visible in delegation navigation and dashboard services.
+- Delegation dossier access is filtered by exact imported delegation name and exact PV status `Validé`; beneficiary dossier details and signature routes remain isolated.
+- Verified the real `delegation_agadir` account sees only eligible dossier `1503/198008/31`; already-signed Agadir dossiers and other delegations are excluded.
+- Added permission tests proving beneficiary and `admin_dde` users cannot access the delegation list.
+- Validation passed: all 36 account/PV/delegation tests, `manage.py check`, and migration consistency check. No migration was required.
+- Implemented the complete delegation/DR signature stage for source dossiers
+  whose exact PV status is `Validé`.
+- Added protected delegation dossier detail, PDF consultation, OTP request, and
+  OTP verification routes under `/delegation/dossiers/<import_id>/`.
+- Added separate managed DR evidence storage: `PvAffectation` DR state,
+  `DrOtpCode`, and `SignatureOtpPvDr`. No write is made to the unmanaged AMLACS
+  source table.
+- Added private `pv_documents/dr_signed/` storage and a concise Arabic footer
+  followed by an invisible PAdES-B-B signature for the delegation signataire.
+- After the DR signature, the dossier leaves the delegation queue and becomes
+  eligible for the matching beneficiary signataire even while the imported
+  source row remains `Validé`.
+- Applied migration `affectations.0009_pvaffectation_delegation_and_more`.
+- Fixed PostgreSQL row locking in DR OTP verification by avoiding an outer join
+  on the nullable delegation relationship.
+- Validation passed: all 40 tests, `manage.py check`, migration consistency
+  check, real-account permission check, and an authenticated render check for
+  all three Agadir signing controls.
+- Known test-data prerequisite: real Agadir source dossier import ID `1`
+  (`1503/198008/31`) has no official AMLACS PDF in private storage yet. Place
+  it at `pv_documents/official/1.pdf` before requesting its OTP.
+- Corrected the final PV chain so beneficiary signing starts from the
+  delegation-signed PDF in `dr_signed/`, not from the original AMLACS PDF.
+- The DR stage now reserves a second footer area. Beneficiary OTP verification
+  adds the Arabic beneficiary footer as a visible signature appearance and
+  appends a second PAdES-B-B signature incrementally.
+- The final PDF in `signed/` contains both embedded fields:
+  `DrSignature_<pv_id>` and `BeneficiarySignature_<pv_id>`.
+- Final integrity verification now validates the final SHA-256 evidence, the
+  beneficiary signature over the complete file, and the delegation signature
+  over its earlier revision with only the later signature update permitted.
+- A rendered QA sample confirmed correct footer order, spacing, Arabic
+  legibility, and separate delegation/beneficiary signature areas.
+- Validation passed: all 40 tests, `manage.py check`, migration consistency
+  check, dual-certificate validation, and final PDF visual review.
+- Replaced the delegation PDF debug 404 with a document-aware dossier state.
+  When the AMLACS PDF is missing, consultation and OTP controls are hidden and
+  the page displays the exact expected filename.
+- Confirmed dossier import ID `8` (`603/200626/31`, delegation `Essaouira`)
+  expects `pv_documents/official/8.pdf`; the private official directory
+  currently contains only `12.pdf` through `16.pdf`.
+- Validation passed: all 5 delegation-flow tests, `manage.py check`, and the
+  migration consistency check. No migration was required.
+- Generated clearly marked local test PDFs for missing source import IDs `1`
+  through `11` under `pv_documents/official/`; existing PDFs `12` through `16`
+  were preserved.
+- Every one of the 16 source dossiers now resolves through the official-PV
+  service using its `<import_id>.pdf` filename.
+- Visually verified test PDF `8.pdf` and confirmed protected consultation
+  returns HTTP 200 `application/pdf` for the real Agadir and Essaouira
+  delegation accounts.
 - Reset test dossier `14` again for manual signing: removed its OTP, signature proof, signed-PV metadata, and signed copy while preserving the `Signé par DR` source row and official AMLACS PDF.

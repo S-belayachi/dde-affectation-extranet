@@ -9,12 +9,16 @@ import fitz
 import tempfile
 import shutil
 from pathlib import Path
+from pyhanko.pdf_utils.reader import PdfFileReader
 
 from .models import (
     AdministrationBeneficiaire,
+    Delegation,
+    DrOtpCode,
     OtpCode,
     PvAffectation,
     SignatureOtpPv,
+    SignatureOtpPvDr,
     TableFaitAffectationDatalab,
 )
 from .services.pv_documents import (
@@ -22,10 +26,14 @@ from .services.pv_documents import (
     INTEGRITY_VALID,
     calculate_sha256,
     electronic_signature_statement,
+    get_dr_signed_pdf_path,
     get_signed_pdf_path,
     retrieve_official_pv,
+    verify_dr_signed_pv_integrity,
     verify_signed_pv_integrity,
 )
+from .services.pades_signature import PADES_PROFILE, validate_pades_signature
+from .services.dr_rules import DR_READY_STATUSES
 from .services.pv_rules import PV_READY_STATUSES
 
 
@@ -52,6 +60,12 @@ class DossierListAccessTests(TestCase):
         self.sports = AdministrationBeneficiaire.objects.create(
             nom="Jeunesse Et Sports"
         )
+        self.agadir = Delegation.objects.create(
+            code="DEL-AGADIR",
+            nom="Agadir",
+            adresse="Adresse Agadir",
+            email="agadir@example.test",
+        )
         self.education_user = User.objects.create_user(
             username="education_user",
             password="StrongPass123!",
@@ -71,6 +85,13 @@ class DossierListAccessTests(TestCase):
             role=User.ROLE_ADMIN_DDE,
             is_staff=True,
             is_superuser=True,
+        )
+        self.agadir_signer = User.objects.create_user(
+            username="agadir_signer",
+            password="StrongPass123!",
+            role=User.ROLE_SIGNATAIRE_DELEGATION,
+            delegation=self.agadir,
+            peut_signer=True,
         )
         TableFaitAffectationDatalab.objects.create(
             num_dossier="EDU-001",
@@ -92,6 +113,27 @@ class DossierListAccessTests(TestCase):
             denomination_projet="Ecole prete a signer",
             statut_dossier="PV etabli",
             statut_pv=next(iter(PV_READY_STATUSES)),
+        )
+        TableFaitAffectationDatalab.objects.create(
+            num_dossier="AGADIR-VALID",
+            delegation="Agadir",
+            administration_beneficiaire="Education Nationale",
+            denomination_projet="Projet Agadir valide",
+            statut_pv=next(iter(DR_READY_STATUSES)),
+        )
+        TableFaitAffectationDatalab.objects.create(
+            num_dossier="AGADIR-SIGNED",
+            delegation="Agadir",
+            administration_beneficiaire="Education Nationale",
+            denomination_projet="Projet Agadir deja signe",
+            statut_pv="Signé",
+        )
+        TableFaitAffectationDatalab.objects.create(
+            num_dossier="RABAT-VALID",
+            delegation="Rabat",
+            administration_beneficiaire="Education Nationale",
+            denomination_projet="Projet Rabat valide",
+            statut_pv=next(iter(DR_READY_STATUSES)),
         )
 
     def test_dossier_list_requires_login(self):
@@ -126,6 +168,39 @@ class DossierListAccessTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "EDU-PV-READY")
         self.assertNotContains(response, "EDU-001")
+
+    def test_delegation_signer_sees_only_own_validated_dossiers(self):
+        self.client.force_login(self.agadir_signer)
+
+        response = self.client.get(
+            reverse("affectations:delegation_dossier_list")
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "AGADIR-VALID")
+        self.assertContains(response, "Projet Agadir valide")
+        self.assertNotContains(response, "AGADIR-SIGNED")
+        self.assertNotContains(response, "RABAT-VALID")
+        self.assertContains(
+            response,
+            reverse(
+                "affectations:delegation_dossier_detail",
+                args=[
+                    TableFaitAffectationDatalab.objects.get(
+                        num_dossier="AGADIR-VALID"
+                    ).import_id
+                ],
+            ),
+        )
+
+    def test_beneficiary_and_dde_users_cannot_access_delegation_dossiers(self):
+        delegation_url = reverse("affectations:delegation_dossier_list")
+
+        self.client.force_login(self.education_user)
+        self.assertEqual(self.client.get(delegation_url).status_code, 403)
+
+        self.client.force_login(self.admin_dde)
+        self.assertEqual(self.client.get(delegation_url).status_code, 403)
 
 class PvAffectationFlowTests(TestCase):
     @classmethod
@@ -480,8 +555,51 @@ class PvAffectationFlowTests(TestCase):
         self.assertEqual(signature_proof.user_agent, "Test agent")
         self.assertEqual(signature_proof.signed_at, pv.signed_at)
         self.assertEqual(signature_proof.pdf_hash_sha256, pv.pdf_hash_sha256)
+        self.assertEqual(signature_proof.pades_profile, PADES_PROFILE)
+        self.assertEqual(
+            signature_proof.pades_signature_field,
+            f"BeneficiarySignature_{pv.pk}",
+        )
+        self.assertIn(
+            "CN=Souhayl Belayachi",
+            signature_proof.pades_certificate_subject,
+        )
+        self.assertIn(
+            "O=Education Nationale",
+            signature_proof.pades_certificate_subject,
+        )
+        self.assertTrue(signature_proof.pades_certificate_serial_number)
+        self.assertEqual(
+            len(signature_proof.pades_certificate_fingerprint_sha256),
+            64,
+        )
         self.assertEqual(verify_signed_pv_integrity(pv).status, INTEGRITY_VALID)
-        signed_document = fitz.open(get_signed_pdf_path(pv))
+        signed_path = get_signed_pdf_path(pv)
+        pades_result = validate_pades_signature(
+            signed_path,
+            expected_field_name=signature_proof.pades_signature_field,
+            expected_fingerprint_sha256=(
+                signature_proof.pades_certificate_fingerprint_sha256
+            ),
+        )
+        self.assertTrue(pades_result.is_valid)
+        with open(signed_path, "rb") as signed_file:
+            signed_reader = PdfFileReader(signed_file)
+            embedded_signature = next(
+                signature
+                for signature in signed_reader.embedded_signatures
+                if signature.field_name == signature_proof.pades_signature_field
+            )
+            self.assertEqual(
+                str(embedded_signature.sig_object.get("/SubFilter")),
+                "/ETSI.CAdES.detached",
+            )
+            self.assertEqual(
+                list(embedded_signature.sig_field.get("/Rect")),
+                [0, 0, 0, 0],
+            )
+
+        signed_document = fitz.open(signed_path)
         signed_page_height = signed_document[-1].rect.height
         signed_text_position = signed_document[-1].search_for(
             "PV officiel AMLACS"
@@ -521,9 +639,11 @@ class PvAffectationFlowTests(TestCase):
             signature_statement,
             "تم توقيع هذا المحضر إلكترونياً من طرف سهيل بلاياشي، "
             "نيابةً عن الإدارة المستفيدة وزارة التربية الوطنية، "
-            f"بتاريخ {local_signed_at:%d/%m/%Y}",
+            f"بتاريخ {local_signed_at:%d/%m/%Y} "
+            f"على الساعة {local_signed_at:%H:%M:%S}",
         )
         self.assertIn(f"{local_signed_at:%d/%m/%Y}", footer_text)
+        self.assertIn(f"{local_signed_at:%H:%M:%S}", footer_text)
         footer_samples = footer_pixmap.samples
         dark_footer_pixels = sum(
             1
@@ -545,10 +665,23 @@ class PvAffectationFlowTests(TestCase):
         self.assertEqual(dde_pdf_response["Content-Type"], "application/pdf")
         b"".join(dde_pdf_response.streaming_content)
 
-        signed_path = get_signed_pdf_path(pv)
-        with open(signed_path, "ab") as signed_file:
-            signed_file.write(b"\n% modification non autorisee")
+        tampered_document = fitz.open(signed_path)
+        tampered_document[0].insert_text(
+            fitz.Point(72, 120),
+            "Modification non autorisee",
+        )
+        tampered_document.saveIncr()
+        tampered_document.close()
 
+        self.assertFalse(
+            validate_pades_signature(
+                signed_path,
+                expected_field_name=signature_proof.pades_signature_field,
+                expected_fingerprint_sha256=(
+                    signature_proof.pades_certificate_fingerprint_sha256
+                ),
+            ).is_valid
+        )
         self.assertEqual(
             verify_signed_pv_integrity(pv).status,
             INTEGRITY_TAMPERED,
@@ -582,3 +715,332 @@ class PvAffectationFlowTests(TestCase):
             reverse("affectations:dde_signed_pv_pdf", args=[pv.id])
         )
         self.assertEqual(beneficiary_pdf_response.status_code, 403)
+
+
+class DrPvSignatureFlowTests(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        with connection.schema_editor() as schema_editor:
+            schema_editor.create_model(TableFaitAffectationDatalab)
+
+    @classmethod
+    def tearDownClass(cls):
+        with connection.schema_editor() as schema_editor:
+            schema_editor.delete_model(TableFaitAffectationDatalab)
+        super().tearDownClass()
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+        self.addCleanup(lambda: shutil.rmtree(self.tmpdir, ignore_errors=True))
+        self.document_root = Path(self.tmpdir) / "pv_documents"
+        self.override = override_settings(
+            PV_PRINT_OTP_TO_CONSOLE=False,
+            EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+            DEFAULT_FROM_EMAIL="pv-otp@example.test",
+            PV_DOCUMENT_ROOT=self.document_root,
+            AMLACS_PV_OFFICIAL_ROOT=self.document_root / "official",
+            DR_SIGNED_PV_ROOT=self.document_root / "dr_signed",
+            SIGNED_PV_ROOT=self.document_root / "signed",
+        )
+        self.override.enable()
+        self.addCleanup(self.override.disable)
+
+        self.education = AdministrationBeneficiaire.objects.create(
+            nom="Education Nationale"
+        )
+        self.agadir = Delegation.objects.create(
+            code="DEL-AGADIR",
+            nom="Agadir",
+            adresse="Adresse Agadir",
+            email="agadir@example.test",
+        )
+        self.rabat = Delegation.objects.create(
+            code="DEL-RABAT",
+            nom="Rabat",
+            adresse="Adresse Rabat",
+            email="rabat@example.test",
+        )
+        self.dr_signer = User.objects.create_user(
+            username="delegation_agadir",
+            password="StrongPass123!",
+            first_name="Souhayl",
+            last_name="Belayachi",
+            role=User.ROLE_SIGNATAIRE_DELEGATION,
+            delegation=self.agadir,
+            peut_signer=True,
+        )
+        self.other_dr_signer = User.objects.create_user(
+            username="delegation_rabat",
+            password="StrongPass123!",
+            first_name="Autre",
+            last_name="Signataire",
+            role=User.ROLE_SIGNATAIRE_DELEGATION,
+            delegation=self.rabat,
+            peut_signer=True,
+        )
+        self.beneficiary_signer = User.objects.create_user(
+            username="education_signer",
+            password="StrongPass123!",
+            first_name="Beneficiaire",
+            last_name="Signataire",
+            email="beneficiary@example.test",
+            role=User.ROLE_SIGNATAIRE,
+            administration=self.education,
+            peut_signer=True,
+        )
+        self.dossier = TableFaitAffectationDatalab.objects.create(
+            num_dossier="AGADIR-DR-001",
+            delegation="Agadir",
+            administration_beneficiaire="Education Nationale",
+            denomination_projet="Projet a signer par la DR",
+            numero_pv="PV-DR-001",
+            statut_pv=next(iter(DR_READY_STATUSES)),
+        )
+        self.create_official_pdf()
+
+    def create_official_pdf(self):
+        path = (
+            self.document_root
+            / "official"
+            / f"{self.dossier.import_id}.pdf"
+        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        document = fitz.open()
+        page = document.new_page()
+        page.insert_text((72, 72), "PV officiel en attente de signature DR")
+        document.save(path)
+        document.close()
+
+    def prepare_pv(self):
+        pv, _source_path = retrieve_official_pv(
+            self.dossier,
+            self.education,
+        )
+        pv.delegation = self.agadir
+        pv.save(update_fields=["delegation"])
+        return pv
+
+    def test_delegation_detail_exposes_pv_and_otp_actions(self):
+        self.client.force_login(self.dr_signer)
+
+        response = self.client.get(
+            reverse(
+                "affectations:delegation_dossier_detail",
+                args=[self.dossier.import_id],
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Consulter le PV")
+        self.assertContains(response, "Demander OTP")
+        self.assertContains(response, "Signer par OTP")
+
+    def test_missing_official_pv_is_reported_without_debug_404(self):
+        official_path = (
+            self.document_root
+            / "official"
+            / f"{self.dossier.import_id}.pdf"
+        )
+        official_path.unlink()
+        self.client.force_login(self.dr_signer)
+
+        detail_response = self.client.get(
+            reverse(
+                "affectations:delegation_dossier_detail",
+                args=[self.dossier.import_id],
+            )
+        )
+        pdf_response = self.client.get(
+            reverse(
+                "affectations:delegation_pv_pdf",
+                args=[self.dossier.import_id],
+            )
+        )
+
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertContains(detail_response, "PV officiel indisponible")
+        self.assertContains(
+            detail_response,
+            f"Fichier attendu : {self.dossier.import_id}.pdf",
+        )
+        self.assertNotContains(detail_response, "Consulter le PV")
+        self.assertNotContains(detail_response, "Demander OTP")
+        self.assertEqual(pdf_response.status_code, 302)
+        self.assertEqual(
+            pdf_response["Location"],
+            reverse(
+                "affectations:delegation_dossier_detail",
+                args=[self.dossier.import_id],
+            ),
+        )
+
+    def test_other_delegation_cannot_access_dr_signature_views(self):
+        self.client.force_login(self.other_dr_signer)
+
+        detail_response = self.client.get(
+            reverse(
+                "affectations:delegation_dossier_detail",
+                args=[self.dossier.import_id],
+            )
+        )
+        pdf_response = self.client.get(
+            reverse(
+                "affectations:delegation_pv_pdf",
+                args=[self.dossier.import_id],
+            )
+        )
+
+        self.assertEqual(detail_response.status_code, 403)
+        self.assertEqual(pdf_response.status_code, 403)
+
+    def test_dr_otp_is_hashed_and_sent_to_delegation_email(self):
+        self.client.force_login(self.dr_signer)
+
+        response = self.client.post(
+            reverse(
+                "affectations:delegation_pv_otp_request",
+                args=[self.dossier.import_id],
+            )
+        )
+
+        self.assertEqual(response.status_code, 302)
+        otp = DrOtpCode.objects.get()
+        self.assertNotRegex(otp.code_hash, r"^\d{6}$")
+        self.assertEqual(mail.outbox[0].to, [self.agadir.email])
+
+    def test_successful_dr_signature_hands_dossier_to_beneficiary(self):
+        pv = self.prepare_pv()
+        DrOtpCode.objects.create(
+            user=self.dr_signer,
+            pv=pv,
+            code_hash=make_password("123456"),
+            expires_at=timezone.now() + timezone.timedelta(minutes=10),
+        )
+        self.client.force_login(self.dr_signer)
+
+        response = self.client.post(
+            reverse(
+                "affectations:delegation_pv_otp_verify",
+                args=[self.dossier.import_id],
+            ),
+            {"otp_code": "123456"},
+            HTTP_USER_AGENT="DR test agent",
+        )
+
+        self.assertEqual(response.status_code, 302)
+        pv.refresh_from_db()
+        self.dossier.refresh_from_db()
+        self.assertTrue(pv.is_signed_by_dr)
+        self.assertFalse(pv.is_signed)
+        self.assertIsNotNone(pv.signed_by_dr_at)
+        self.assertTrue(pv.dr_signed_pdf.startswith("dr_signed"))
+        self.assertEqual(self.dossier.statut_pv, next(iter(DR_READY_STATUSES)))
+
+        proof = SignatureOtpPvDr.objects.get(pv=pv)
+        self.assertTrue(proof.otp_verified)
+        self.assertEqual(proof.user, self.dr_signer)
+        self.assertEqual(proof.delegation, self.agadir)
+        self.assertEqual(proof.user_agent, "DR test agent")
+        self.assertEqual(proof.pdf_hash_sha256, pv.dr_pdf_hash_sha256)
+        self.assertEqual(proof.pades_profile, PADES_PROFILE)
+        self.assertEqual(proof.pades_signature_field, f"DrSignature_{pv.pk}")
+        self.assertEqual(
+            verify_dr_signed_pv_integrity(pv).status,
+            INTEGRITY_VALID,
+        )
+        self.assertTrue(get_dr_signed_pdf_path(pv).is_file())
+
+        delegation_pdf_response = self.client.get(
+            reverse(
+                "affectations:delegation_pv_pdf",
+                args=[self.dossier.import_id],
+            )
+        )
+        delegation_list_response = self.client.get(
+            reverse("affectations:delegation_dossier_list")
+        )
+        self.assertEqual(delegation_pdf_response.status_code, 403)
+        self.assertNotContains(delegation_list_response, self.dossier.num_dossier)
+
+        self.client.force_login(self.beneficiary_signer)
+        beneficiary_list_response = self.client.get(
+            reverse("affectations:dossier_list")
+        )
+        beneficiary_detail_response = self.client.get(
+            reverse(
+                "affectations:dossier_detail",
+                args=[self.dossier.import_id],
+            )
+        )
+        beneficiary_pdf_response = self.client.get(
+            reverse(
+                "affectations:pv_pdf",
+                args=[self.dossier.import_id],
+            )
+        )
+        self.assertContains(beneficiary_list_response, self.dossier.num_dossier)
+        self.assertContains(beneficiary_detail_response, "Signer par OTP")
+        self.assertEqual(beneficiary_pdf_response.status_code, 200)
+        self.assertEqual(
+            beneficiary_pdf_response["Content-Type"],
+            "application/pdf",
+        )
+        b"".join(beneficiary_pdf_response.streaming_content)
+
+        OtpCode.objects.create(
+            user=self.beneficiary_signer,
+            pv=pv,
+            code_hash=make_password("654321"),
+            expires_at=timezone.now() + timezone.timedelta(minutes=10),
+        )
+        beneficiary_sign_response = self.client.post(
+            reverse(
+                "affectations:pv_otp_verify",
+                args=[self.dossier.import_id],
+            ),
+            {"otp_code": "654321"},
+            HTTP_USER_AGENT="Beneficiary test agent",
+        )
+
+        self.assertEqual(beneficiary_sign_response.status_code, 302)
+        pv.refresh_from_db()
+        self.assertTrue(pv.is_signed_by_dr)
+        self.assertTrue(pv.is_signed)
+        self.assertEqual(verify_dr_signed_pv_integrity(pv).status, INTEGRITY_VALID)
+        self.assertEqual(verify_signed_pv_integrity(pv).status, INTEGRITY_VALID)
+
+        final_path = get_signed_pdf_path(pv)
+        beneficiary_proof = SignatureOtpPv.objects.get(pv=pv)
+        with open(final_path, "rb") as final_file:
+            final_reader = PdfFileReader(final_file)
+            signature_fields = {
+                signature.field_name
+                for signature in final_reader.embedded_signatures
+            }
+        self.assertEqual(
+            signature_fields,
+            {
+                proof.pades_signature_field,
+                beneficiary_proof.pades_signature_field,
+            },
+        )
+        self.assertTrue(
+            validate_pades_signature(
+                final_path,
+                expected_field_name=proof.pades_signature_field,
+                expected_fingerprint_sha256=(
+                    proof.pades_certificate_fingerprint_sha256
+                ),
+                allow_later_signatures=True,
+            ).is_valid
+        )
+        self.assertTrue(
+            validate_pades_signature(
+                final_path,
+                expected_field_name=beneficiary_proof.pades_signature_field,
+                expected_fingerprint_sha256=(
+                    beneficiary_proof.pades_certificate_fingerprint_sha256
+                ),
+            ).is_valid
+        )

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Dossiers d'affectation" %} | Extranet Affectation{% endblock %}
+
+{% block content %}
+    <header class="page-heading">
+        <div class="page-heading__copy">
+            <p class="eyebrow">{% trans "Delegation" %}</p>
+            <h1>{% trans "Dossiers d'affectation" %}</h1>
+            <p>{{ delegation.nom }}</p>
+        </div>
+    </header>
+
+    {% if dossiers %}
+        <section class="panel" aria-labelledby="delegation-dossiers-title">
+            <div class="panel__header">
+                <h2 id="delegation-dossiers-title">{% trans "Liste des dossiers" %}</h2>
+                <p>{{ dossiers|length }} {% trans "dossiers disponibles" %}</p>
+            </div>
+            <div class="panel__body panel__body--flush">
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">{% trans "Numero dossier" %}</th>
+                                <th scope="col">{% trans "Projet" %}</th>
+                                <th scope="col">{% trans "Administration" %}</th>
+                                <th scope="col">{% trans "Type affectation" %}</th>
+                                <th scope="col">{% trans "Statut dossier" %}</th>
+                                <th scope="col">{% trans "Statut PV" %}</th>
+                                <th scope="col">DR</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dossier in dossiers %}
+                                <tr>
+                                    <td class="cell-primary">
+                                        <a href="{% url 'affectations:delegation_dossier_detail' dossier.import_id %}">
+                                            {{ dossier.num_dossier|default:"-" }}
+                                        </a>
+                                    </td>
+                                    <td>{{ dossier.denomination_projet|default:"-" }}</td>
+                                    <td>{{ dossier.administration_beneficiaire|default:"-" }}</td>
+                                    <td>{{ dossier.type_affectation|default:"-" }}</td>
+                                    <td>
+                                        <span class="badge">{{ dossier.statut_dossier|default:"-" }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge--success">{{ dossier.statut_pv|default:"-" }}</span>
+                                    </td>
+                                    <td>{{ dossier.dr|default:"-" }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    {% else %}
+        <section class="empty-state">
+            <h2>{% trans "Aucun dossier disponible" %}</h2>
+            <p>{% trans "Aucun dossier d'affectation n'est disponible pour votre compte." %}</p>
+        </section>
+    {% endif %}
+{% endblock %}

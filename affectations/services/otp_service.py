@@ -37,7 +37,7 @@ def send_pv_otp(user, plain_code):
         print(f"Development PV OTP for user={user.pk}: {plain_code}")
         return
 
-    recipient = (user.email or "").strip()
+    recipient = user.otp_email
     if not recipient:
         raise OtpDeliveryError(
             _("Votre compte ne dispose pas d'adresse e-mail. Contactez votre administrateur organisme.")
@@ -152,7 +152,7 @@ def verify_pv_otp(user, dossier, pv, submitted_code, ip_address="", user_agent="
         otp.used_at = now
         otp.save(update_fields=["attempts", "used_at"])
 
-        pdf_hash = create_signed_pv_pdf(
+        signed_pdf_result = create_signed_pv_pdf(
             pv,
             current_user.administration,
             current_user,
@@ -161,7 +161,7 @@ def verify_pv_otp(user, dossier, pv, submitted_code, ip_address="", user_agent="
 
         pv.is_signed = True
         pv.signed_at = now
-        pv.pdf_hash_sha256 = pdf_hash
+        pv.pdf_hash_sha256 = signed_pdf_result.sha256
         pv.save(
             update_fields=[
                 "signed_pdf",
@@ -179,7 +179,18 @@ def verify_pv_otp(user, dossier, pv, submitted_code, ip_address="", user_agent="
             signed_at=now,
             ip_address=ip_address or None,
             user_agent=user_agent or "",
-            pdf_hash_sha256=pdf_hash,
+            pdf_hash_sha256=signed_pdf_result.sha256,
+            pades_profile=signed_pdf_result.pades.profile,
+            pades_signature_field=signed_pdf_result.pades.field_name,
+            pades_certificate_subject=(
+                signed_pdf_result.pades.certificate_subject
+            ),
+            pades_certificate_serial_number=(
+                signed_pdf_result.pades.certificate_serial_number
+            ),
+            pades_certificate_fingerprint_sha256=(
+                signed_pdf_result.pades.certificate_fingerprint_sha256
+            ),
         )
 
     return True, _("PV signe avec succes.")

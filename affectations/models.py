@@ -61,6 +61,21 @@ class TableFaitAffectationDatalab(models.Model):
         db_table = 'table_fait_affectation_datalab'
 
 
+class Delegation(models.Model):
+    code = models.CharField(max_length=50, unique=True)
+    nom = models.CharField(max_length=200, unique=True)
+    adresse = models.TextField()
+    email = models.EmailField()
+
+    class Meta:
+        verbose_name = "Délégation"
+        verbose_name_plural = "Délégations"
+        ordering = ["nom"]
+
+    def __str__(self):
+        return f"{self.code} - {self.nom}"
+
+
 class AdministrationBeneficiaire(models.Model):
     nom = models.CharField(max_length=200, unique=True)
     nom_ar = models.CharField("Nom en arabe", max_length=200, blank=True, null=True)
@@ -97,14 +112,25 @@ class PvAffectation(models.Model):
         on_delete=models.PROTECT,
         related_name="pv_affectations",
     )
+    delegation = models.ForeignKey(
+        Delegation,
+        on_delete=models.PROTECT,
+        related_name="pv_affectations",
+        blank=True,
+        null=True,
+    )
 
     source_filename = models.CharField(max_length=500, blank=True)
     source_pdf_hash_sha256 = models.CharField(max_length=64, blank=True)
+    dr_signed_pdf = models.CharField(max_length=500, blank=True)
+    dr_pdf_hash_sha256 = models.CharField(max_length=64, blank=True)
     signed_pdf = models.CharField(max_length=500, blank=True)
     pdf_hash_sha256 = models.CharField(max_length=64, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     source_retrieved_at = models.DateTimeField(blank=True, null=True)
+    is_signed_by_dr = models.BooleanField(default=False)
+    signed_by_dr_at = models.DateTimeField(blank=True, null=True)
     is_signed = models.BooleanField(default=False)
     signed_at = models.DateTimeField(blank=True, null=True)
 
@@ -146,6 +172,35 @@ class OtpCode(models.Model):
         return f"OTP PV {self.pv_id} / {self.user_id}"
 
 
+class DrOtpCode(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="dr_pv_otp_codes",
+    )
+    pv = models.ForeignKey(
+        PvAffectation,
+        on_delete=models.CASCADE,
+        related_name="dr_otp_codes",
+    )
+    code_hash = models.CharField(max_length=128)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(blank=True, null=True)
+    invalidated_at = models.DateTimeField(blank=True, null=True)
+    invalidation_reason = models.CharField(max_length=100, blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    max_attempts = models.PositiveSmallIntegerField(default=3)
+
+    class Meta:
+        verbose_name = "Code OTP PV DR"
+        verbose_name_plural = "Codes OTP PV DR"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"OTP DR PV {self.pv_id} / {self.user_id}"
+
+
 class SignatureOtpPv(models.Model):
     pv = models.OneToOneField(
         PvAffectation,
@@ -167,6 +222,14 @@ class SignatureOtpPv(models.Model):
     ip_address = models.GenericIPAddressField(blank=True, null=True)
     user_agent = models.TextField(blank=True)
     pdf_hash_sha256 = models.CharField(max_length=64)
+    pades_profile = models.CharField(max_length=30, blank=True)
+    pades_signature_field = models.CharField(max_length=100, blank=True)
+    pades_certificate_subject = models.TextField(blank=True)
+    pades_certificate_serial_number = models.CharField(max_length=64, blank=True)
+    pades_certificate_fingerprint_sha256 = models.CharField(
+        max_length=64,
+        blank=True,
+    )
 
     class Meta:
         verbose_name = "Signature OTP PV"
@@ -175,3 +238,42 @@ class SignatureOtpPv(models.Model):
 
     def __str__(self):
         return f"Signature PV {self.pv_id} par {self.user_id}"
+
+
+class SignatureOtpPvDr(models.Model):
+    pv = models.OneToOneField(
+        PvAffectation,
+        on_delete=models.PROTECT,
+        related_name="dr_signature_proof",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="dr_pv_signatures",
+    )
+    delegation = models.ForeignKey(
+        Delegation,
+        on_delete=models.PROTECT,
+        related_name="pv_signatures",
+    )
+    otp_verified = models.BooleanField(default=True)
+    signed_at = models.DateTimeField()
+    ip_address = models.GenericIPAddressField(blank=True, null=True)
+    user_agent = models.TextField(blank=True)
+    pdf_hash_sha256 = models.CharField(max_length=64)
+    pades_profile = models.CharField(max_length=30, blank=True)
+    pades_signature_field = models.CharField(max_length=100, blank=True)
+    pades_certificate_subject = models.TextField(blank=True)
+    pades_certificate_serial_number = models.CharField(max_length=64, blank=True)
+    pades_certificate_fingerprint_sha256 = models.CharField(
+        max_length=64,
+        blank=True,
+    )
+
+    class Meta:
+        verbose_name = "Signature OTP PV DR"
+        verbose_name_plural = "Signatures OTP PV DR"
+        ordering = ["-signed_at"]
+
+    def __str__(self):
+        return f"Signature DR PV {self.pv_id} par {self.user_id}"

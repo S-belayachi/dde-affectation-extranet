@@ -392,6 +392,16 @@ Le résultat est transmis à AMLACS
 
 
 
+# signature par OTP et PAdES
+
+official/ → delegation signs → dr_signed/ → beneficiary signs → signed/
+
+>The final PDF now contains both PAdES signatures:
+- DrSignature_<pv_id> for the delegation.
+- BeneficiarySignature_<pv_id> for the beneficiary administration.
+
+
+
 # a ajouter
 
 - lecture du PV a l'etat signe par DR depuis un repertoire
@@ -399,3 +409,4 @@ Le résultat est transmis à AMLACS
 - laisser que les dossiers signe par DR dans l'extranet
 - traduire l'interface en arabe
 - improve and polish the interface 
+- pyHanko applies the PAdES signature as the final PDF operation.

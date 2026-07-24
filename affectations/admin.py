@@ -7,9 +7,12 @@ from django.utils.html import format_html
 from .models import (
     TableFaitAffectationDatalab,
     AdministrationBeneficiaire,
+    Delegation,
+    DrOtpCode,
     OtpCode,
     PvAffectation,
     SignatureOtpPv,
+    SignatureOtpPvDr,
 )
 from .services.pv_documents import (
     INTEGRITY_MISSING,
@@ -19,6 +22,13 @@ from .services.pv_documents import (
     INTEGRITY_VALID,
     verify_signed_pv_integrity,
 )
+
+
+@admin.register(Delegation)
+class DelegationAdmin(admin.ModelAdmin):
+    list_display = ("code", "nom", "email", "adresse")
+    search_fields = ("code", "nom", "email", "adresse")
+    ordering = ("nom",)
 
 
 @admin.register(AdministrationBeneficiaire)
@@ -187,9 +197,12 @@ class PvAffectationAdmin(admin.ModelAdmin):
         "num_dossier",
         "numero_pv",
         "administration",
+        "delegation",
+        "is_signed_by_dr",
         "is_signed",
         "source_filename",
         "source_retrieved_at",
+        "signed_by_dr_at",
         "signed_at",
         "integrity_status",
         "signed_pdf_link",
@@ -200,13 +213,18 @@ class PvAffectationAdmin(admin.ModelAdmin):
         "administration_source_nom",
         "pv_key",
     )
-    list_filter = ("is_signed", "administration")
+    list_filter = ("is_signed_by_dr", "is_signed", "delegation", "administration")
     readonly_fields = [
         *[field.name for field in PvAffectation._meta.fields],
         "integrity_details",
         "signed_pdf_link",
     ]
-    list_select_related = ("administration", "signature_proof")
+    list_select_related = (
+        "administration",
+        "delegation",
+        "dr_signature_proof",
+        "signature_proof",
+    )
     actions = ("verify_selected_signed_pdf_integrity",)
 
     integrity_labels = {
@@ -244,11 +262,17 @@ class PvAffectationAdmin(admin.ModelAdmin):
             "<strong>{}</strong><br>"
             "SHA-256 actuel : <code>{}</code><br>"
             "SHA-256 du PV : <code>{}</code><br>"
-            "SHA-256 de la preuve OTP : <code>{}</code>",
+            "SHA-256 de la preuve OTP : <code>{}</code><br>"
+            "Signature PAdES : <strong>{}</strong><br>"
+            "Certificat : {}<br>"
+            "Détail PAdES : {}",
             self.integrity_label(result),
             result.current_hash or "-",
             result.pv_hash or "-",
             result.proof_hash or "-",
+            "Valide" if result.pades_valid else "Invalide ou absente",
+            result.pades_subject or "-",
+            result.pades_error or "-",
         )
 
     @admin.display(description="PDF signe")
@@ -343,6 +367,32 @@ class OtpCodeAdmin(admin.ModelAdmin):
         return view_permission or change_permission
 
 
+@admin.register(DrOtpCode)
+class DrOtpCodeAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "pv",
+        "user",
+        "created_at",
+        "expires_at",
+        "used_at",
+        "attempts",
+        "max_attempts",
+    )
+    search_fields = ("pv__num_dossier", "pv__numero_pv", "user__username")
+    list_filter = ("used_at",)
+    readonly_fields = [field.name for field in DrOtpCode._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(SignatureOtpPv)
 class SignatureOtpPvAdmin(admin.ModelAdmin):
     list_display = (
@@ -351,6 +401,7 @@ class SignatureOtpPvAdmin(admin.ModelAdmin):
         "user",
         "administration",
         "otp_verified",
+        "pades_profile",
         "signed_at",
     )
     search_fields = (
@@ -375,3 +426,33 @@ class SignatureOtpPvAdmin(admin.ModelAdmin):
         view_permission = super().has_view_permission(request, obj)
         change_permission = admin.ModelAdmin.has_change_permission(self, request, obj)
         return view_permission or change_permission
+
+
+@admin.register(SignatureOtpPvDr)
+class SignatureOtpPvDrAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "pv",
+        "user",
+        "delegation",
+        "otp_verified",
+        "pades_profile",
+        "signed_at",
+    )
+    search_fields = (
+        "pv__num_dossier",
+        "pv__numero_pv",
+        "user__username",
+        "delegation__nom",
+    )
+    list_filter = ("otp_verified", "delegation")
+    readonly_fields = [field.name for field in SignatureOtpPvDr._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

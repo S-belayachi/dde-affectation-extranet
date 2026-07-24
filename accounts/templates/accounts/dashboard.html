@@ -6,7 +6,13 @@
 {% block content %}
     <header class="page-heading">
         <div class="page-heading__copy">
-            <p class="eyebrow">{% trans "Espace beneficiaire" %}</p>
+            <p class="eyebrow">
+                {% if request.user.is_delegation_signer %}
+                    {% trans "Delegation" %}
+                {% else %}
+                    {% trans "Espace beneficiaire" %}
+                {% endif %}
+            </p>
             <h1>{% trans "Tableau de bord" %}</h1>
             <p>{% trans "Bienvenue dans votre espace de gestion des dossiers d'affectation." %}</p>
         </div>
@@ -31,47 +37,67 @@
                             {% trans "Signataire" %}
                         {% elif request.user.role == "admin_organisme" %}
                             {% trans "Administrateur organisme" %}
+                        {% elif request.user.role == "signataire_delegation" %}
+                            {% trans "Signataire" %} - {% trans "Delegation" %}
                         {% else %}
                             {% trans "Administrateur DDE" %}
                         {% endif %}
                     </dd>
                 </div>
-                <div class="profile-item">
-                    <dt>{% trans "Administration" %}</dt>
-                    <dd>
-                        {% if request.user.administration %}
-                            {{ request.user.administration }}
-                        {% else %}
-                            {% trans "Non renseignee" %}
-                        {% endif %}
-                    </dd>
-                </div>
+                {% if request.user.delegation %}
+                    <div class="profile-item">
+                        <dt>{% trans "Delegation" %}</dt>
+                        <dd>{{ request.user.delegation }}</dd>
+                    </div>
+                {% else %}
+                    <div class="profile-item">
+                        <dt>{% trans "Administration" %}</dt>
+                        <dd>
+                            {% if request.user.administration %}
+                                {{ request.user.administration }}
+                            {% else %}
+                                {% trans "Non renseignee" %}
+                            {% endif %}
+                        </dd>
+                    </div>
+                {% endif %}
             </dl>
         </div>
     </section>
 
-    <div class="section-heading">
-        <h2>{% trans "Services disponibles" %}</h2>
-        <p>{% trans "Accedez aux services autorises pour votre profil." %}</p>
-    </div>
+    {% if request.user.can_consult_dossiers or request.user.can_consult_dr_dossiers or request.user.can_manage_organism_users %}
+        <div class="section-heading">
+            <h2>{% trans "Services disponibles" %}</h2>
+            <p>{% trans "Accedez aux services autorises pour votre profil." %}</p>
+        </div>
 
-    <div class="service-grid">
-        <a class="service-link" href="{% url 'affectations:dossier_list' %}">
-            <span>
-                <strong>{% trans "Consulter mes dossiers" %}</strong>
-                <small>{% trans "Suivre les dossiers de votre administration." %}</small>
-            </span>
-            <span class="service-link__arrow" aria-hidden="true">&rarr;</span>
-        </a>
+        <div class="service-grid">
+            {% if request.user.can_consult_dossiers %}
+                <a class="service-link" href="{% url 'affectations:dossier_list' %}">
+                    <span>
+                        <strong>{% trans "Consulter mes dossiers" %}</strong>
+                        <small>{% trans "Suivre les dossiers de votre administration." %}</small>
+                    </span>
+                    <span class="service-link__arrow" aria-hidden="true">&rarr;</span>
+                </a>
+            {% elif request.user.can_consult_dr_dossiers %}
+                <a class="service-link" href="{% url 'affectations:delegation_dossier_list' %}">
+                    <span>
+                        <strong>{% trans "Dossiers d'affectation" %}</strong>
+                    </span>
+                    <span class="service-link__arrow" aria-hidden="true">&rarr;</span>
+                </a>
+            {% endif %}
 
-        {% if request.user.can_manage_organism_users %}
-            <a class="service-link" href="{% url 'accounts:organism_user_list' %}">
-                <span>
-                    <strong>{% trans "Gerer les utilisateurs" %}</strong>
-                    <small>{% trans "Administrer les comptes de votre organisme." %}</small>
-                </span>
-                <span class="service-link__arrow" aria-hidden="true">&rarr;</span>
-            </a>
-        {% endif %}
-    </div>
+            {% if request.user.can_manage_organism_users %}
+                <a class="service-link" href="{% url 'accounts:organism_user_list' %}">
+                    <span>
+                        <strong>{% trans "Gerer les utilisateurs" %}</strong>
+                        <small>{% trans "Administrer les comptes de votre organisme." %}</small>
+                    </span>
+                    <span class="service-link__arrow" aria-hidden="true">&rarr;</span>
+                </a>
+            {% endif %}
+        </div>
+    {% endif %}
 {% endblock %}

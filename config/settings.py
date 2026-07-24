@@ -170,6 +170,7 @@ LOGOUT_REDIRECT_URL = 'accounts:login'
 # exposed through Django media/static URLs.
 PV_DOCUMENT_ROOT = Path(os.environ.get('PV_DOCUMENT_ROOT', BASE_DIR / 'pv_documents'))
 AMLACS_PV_OFFICIAL_ROOT = PV_DOCUMENT_ROOT / 'official'
+DR_SIGNED_PV_ROOT = PV_DOCUMENT_ROOT / 'dr_signed'
 SIGNED_PV_ROOT = PV_DOCUMENT_ROOT / 'signed'
 PV_ARABIC_FONT_PATH = Path(
     os.environ.get(

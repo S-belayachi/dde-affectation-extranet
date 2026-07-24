@@ -1,8 +1,9 @@
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
-from affectations.models import AdministrationBeneficiaire
+from affectations.models import AdministrationBeneficiaire, Delegation
 
 
 User = get_user_model()
@@ -92,6 +93,73 @@ class AuthenticationFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
+    def test_delegation_signer_can_login_without_beneficiary_access(self):
+        delegation = Delegation.objects.create(
+            code="DEL-RABAT",
+            nom="Délégation de Rabat",
+            adresse="Rabat",
+            email="otp-rabat@example.test",
+        )
+        delegation_signer = User.objects.create_user(
+            username="delegation_signer",
+            password="StrongPass123!",
+            first_name="Signataire",
+            last_name="Rabat",
+            email="delegation@example.test",
+            role=User.ROLE_SIGNATAIRE_DELEGATION,
+            delegation=delegation,
+            peut_signer=True,
+        )
+
+        response = self.client.post(
+            reverse("accounts:login"),
+            {
+                "username": delegation_signer.username,
+                "password": "StrongPass123!",
+            },
+        )
+        self.assertRedirects(response, reverse("accounts:dashboard"))
+
+        response = self.client.get(reverse("accounts:dashboard"))
+        self.assertContains(response, "Délégation de Rabat")
+        self.assertContains(response, "Signataire")
+        self.assertContains(response, "Delegation")
+        self.assertNotContains(response, 'href="/dossiers/"')
+        self.assertContains(
+            response,
+            reverse("affectations:delegation_dossier_list"),
+        )
+        self.assertTrue(delegation_signer.can_access_extranet)
+        self.assertTrue(delegation_signer.can_sign_pv_dr)
+        self.assertFalse(delegation_signer.can_consult_dossiers)
+        self.assertEqual(
+            delegation_signer.otp_email,
+            "otp-rabat@example.test",
+        )
+
+        dossier_response = self.client.get(
+            reverse("affectations:dossier_list")
+        )
+        self.assertEqual(dossier_response.status_code, 403)
+
+    def test_delegation_role_requires_exclusive_delegation_scope(self):
+        delegation = Delegation.objects.create(
+            code="DEL-CASA",
+            nom="Délégation de Casablanca",
+            adresse="Casablanca",
+            email="otp-casa@example.test",
+        )
+        invalid_user = User(
+            username="invalid_delegation_signer",
+            role=User.ROLE_SIGNATAIRE_DELEGATION,
+            administration=self.education,
+            delegation=delegation,
+            peut_signer=True,
+        )
+
+        with self.assertRaises(ValidationError):
+            invalid_user.full_clean()
+
 
 class OrganismUserManagementTests(TestCase):
     def setUp(self):
@@ -174,6 +242,37 @@ class OrganismUserManagementTests(TestCase):
         self.assertTrue(created_user.peut_signer)
         self.assertFalse(created_user.is_staff)
         self.assertFalse(created_user.is_superuser)
+
+    def test_signataire_requires_real_first_and_last_names(self):
+        self.client.force_login(self.org_admin)
+
+        response = self.client.post(
+            reverse("accounts:organism_user_create"),
+            {
+                "username": "signataire_without_name",
+                "first_name": "",
+                "last_name": "",
+                "email": "signataire@example.local",
+                "nom_ar": "",
+                "prenom_ar": "",
+                "role": User.ROLE_SIGNATAIRE,
+                "fonction": "Responsable",
+                "telephone": "",
+                "cin": "",
+                "matricule": "",
+                "peut_signer": "on",
+                "is_active": "on",
+                "password1": "StrongPass123!",
+                "password2": "StrongPass123!",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("first_name", response.context["form"].errors)
+        self.assertIn("last_name", response.context["form"].errors)
+        self.assertFalse(
+            User.objects.filter(username="signataire_without_name").exists()
+        )
 
     def test_update_is_limited_to_same_administration(self):
         self.client.force_login(self.org_admin)

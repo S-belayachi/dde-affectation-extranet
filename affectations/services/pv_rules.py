@@ -26,8 +26,11 @@ def build_pv_key(dossier):
     return hashlib.sha256(build_pv_group_source(dossier).encode("utf-8")).hexdigest()
 
 
-def is_dossier_at_pv_signature_step(dossier):
-    return dossier.statut_pv in PV_READY_STATUSES
+def is_dossier_at_pv_signature_step(dossier, pv=None):
+    return bool(
+        dossier.statut_pv in PV_READY_STATUSES
+        or (pv and pv.is_signed_by_dr)
+    )
 
 
 def user_matches_dossier_administration(user, dossier):
@@ -52,17 +55,17 @@ def can_user_access_pv(user, dossier, pv=None):
 
 
 def can_user_sign_pv(user, dossier, pv=None):
+    if pv is None:
+        pv = PvAffectation.objects.filter(pv_key=build_pv_key(dossier)).first()
+
     if not (
         user.is_authenticated
         and user.can_access_extranet
         and user.can_sign_pv
         and user_matches_dossier_administration(user, dossier)
-        and is_dossier_at_pv_signature_step(dossier)
+        and is_dossier_at_pv_signature_step(dossier, pv)
     ):
         return False
-
-    if pv is None:
-        pv = PvAffectation.objects.filter(pv_key=build_pv_key(dossier)).first()
 
     return not (pv and pv.is_signed)
 
@@ -71,6 +74,6 @@ def get_pv_status(dossier):
     pv = PvAffectation.objects.filter(pv_key=build_pv_key(dossier)).first()
     if pv and pv.is_signed:
         return "signed"
-    if is_dossier_at_pv_signature_step(dossier):
+    if is_dossier_at_pv_signature_step(dossier, pv):
         return "ready_for_beneficiary_signature"
     return "not_ready"

@@ -12,6 +12,7 @@ class CustomUserAdmin(UserAdmin):
         "first_name",
         "last_name",
         "administration",
+        "delegation",
         "role",
         "peut_signer",
         "is_active",
@@ -25,6 +26,7 @@ class CustomUserAdmin(UserAdmin):
         "is_staff",
         "is_superuser",
         "administration",
+        "delegation",
     )
 
     search_fields = (
@@ -38,6 +40,8 @@ class CustomUserAdmin(UserAdmin):
         "matricule",
         "administration__nom",
         "administration__nom_ar",
+        "delegation__code",
+        "delegation__nom",
     )
 
     ordering = ("username",)
@@ -55,6 +59,7 @@ class CustomUserAdmin(UserAdmin):
         ("Affectation / Extranet", {
             "fields": (
                 "administration",
+                "delegation",
                 "role",
                 "fonction",
                 "peut_signer",
@@ -78,6 +83,7 @@ class CustomUserAdmin(UserAdmin):
         ("Affectation / Extranet", {
             "fields": (
                 "administration",
+                "delegation",
                 "role",
                 "fonction",
                 "peut_signer",

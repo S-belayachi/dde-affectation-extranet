@@ -50,12 +50,21 @@
                     >
                         {% trans "Tableau de bord" %}
                     </a>
-                    <a
-                        href="{% url 'affectations:dossier_list' %}"
-                        {% if request.resolver_match.app_name == "affectations" %}class="is-active" aria-current="page"{% endif %}
-                    >
-                        {% trans "Dossiers" %}
-                    </a>
+                    {% if request.user.can_consult_dossiers %}
+                        <a
+                            href="{% url 'affectations:dossier_list' %}"
+                            {% if request.resolver_match.app_name == "affectations" %}class="is-active" aria-current="page"{% endif %}
+                        >
+                            {% trans "Dossiers" %}
+                        </a>
+                    {% elif request.user.can_consult_dr_dossiers %}
+                        <a
+                            href="{% url 'affectations:delegation_dossier_list' %}"
+                            {% if request.resolver_match.url_name == "delegation_dossier_list" %}class="is-active" aria-current="page"{% endif %}
+                        >
+                            {% trans "Dossiers" %}
+                        </a>
+                    {% endif %}
                     {% if request.user.can_manage_organism_users %}
                         <a
                             href="{% url 'accounts:organism_user_list' %}"
@@ -70,6 +79,8 @@
                     <span>{{ request.user.get_full_name|default:request.user.username }}</span>
                     {% if request.user.administration %}
                         <small>{{ request.user.administration.nom }}</small>
+                    {% elif request.user.delegation %}
+                        <small>{{ request.user.delegation.nom }}</small>
                     {% endif %}
                 </div>
             </div>
